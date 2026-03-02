@@ -60,6 +60,8 @@ Single ESM package. MCP server over stdio that indexes codebases into a vector D
 - `core/snapshot-io.ts` — SQLite persistence of file-hash snapshots for incremental indexing (`snapshots.db`)
 - `state/registry.ts` — project name → path mapping at `~/.eidetic/registry.json`
 
+**Memory system:** Per-project Qdrant collections (`eidetic_<project>_memory`). Memories classified by `kind`: fact, decision, convention, constraint, intent. Search uses query-classified weighting profiles (feasibility/rationale/procedural). Supersession chains track memory evolution. See [docs/architecture/memory-system.md](docs/architecture/memory-system.md).
+
 **Config:** `config.ts` — Zod-validated, entirely env-var driven. `loadConfig()` reads `process.env`, caches result. No config files parsed at runtime (except `messages.yaml` for user-facing setup text).
 
 ## Workflow

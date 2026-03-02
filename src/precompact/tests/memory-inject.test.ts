@@ -6,11 +6,14 @@ const makeMemory = (overrides: Partial<MemoryItem> = {}): MemoryItem => ({
   id: 'test-id',
   memory: 'Docker build fails on M1; use --platform linux/amd64',
   hash: 'abc123',
-  category: 'debugging',
+  kind: 'fact',
   source: 'claude',
   project: 'global',
   access_count: 0,
   last_accessed: '',
+  supersedes: null,
+  superseded_by: null,
+  valid_at: '2026-01-01T00:00:00Z',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
   ...overrides,
@@ -22,9 +25,9 @@ describe('formatMemoryContext', () => {
     expect(output).toContain('## Remembered Knowledge');
   });
 
-  it('includes category prefix in brackets', () => {
-    const output = formatMemoryContext([makeMemory({ category: 'debugging' })]);
-    expect(output).toContain('[debugging]');
+  it('includes kind prefix in brackets', () => {
+    const output = formatMemoryContext([makeMemory({ kind: 'constraint' })]);
+    expect(output).toContain('[constraint]');
   });
 
   it('includes memory text', () => {
@@ -34,16 +37,16 @@ describe('formatMemoryContext', () => {
 
   it('renders multiple memories as bullet list', () => {
     const memories = [
-      makeMemory({ memory: 'First fact', category: 'tools' }),
-      makeMemory({ memory: 'Second fact', category: 'workflow' }),
+      makeMemory({ memory: 'First fact', kind: 'fact' }),
+      makeMemory({ memory: 'Second fact', kind: 'convention' }),
     ];
     const output = formatMemoryContext(memories);
-    expect(output).toContain('- [tools] First fact');
-    expect(output).toContain('- [workflow] Second fact');
+    expect(output).toContain('- [fact] First fact');
+    expect(output).toContain('- [convention] Second fact');
   });
 
-  it('omits category prefix when category is empty', () => {
-    const output = formatMemoryContext([makeMemory({ category: '' })]);
+  it('omits kind prefix when kind is empty', () => {
+    const output = formatMemoryContext([makeMemory({ kind: '' as any })]);
     expect(output).not.toContain('[]');
     expect(output).toContain('- Docker build fails');
   });

@@ -63,9 +63,9 @@ const WORKFLOW_GUIDANCE = `# Eidetic Code Search Workflow
 - Stale docs (past TTL) still return results but are flagged \`[STALE]\`
 
 **Persistent memory (cross-session developer knowledge):**
-- \`add_memory(facts=[{fact:"...", category:"..."}])\` → stores pre-extracted facts about coding style, tools, architecture, etc.
+- \`add_memory(facts=[{fact:"...", kind:"..."}])\` → stores pre-extracted facts classified by kind (fact/decision/convention/constraint/intent)
 - \`search_memory(query="...")\` → find relevant memories by semantic search
-- \`list_memories()\` → see all stored memories grouped by category
+- \`list_memories()\` → see all stored memories grouped by kind
 - \`delete_memory(id="...")\` → remove a specific memory
 - \`memory_history(id="...")\` → view change log for a memory
 - Memories are automatically deduplicated — adding similar facts updates existing ones`;

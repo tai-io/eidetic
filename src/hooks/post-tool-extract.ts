@@ -11,6 +11,7 @@
 
 import { execSync } from 'node:child_process';
 import path from 'node:path';
+import type { ExtractedFact } from '../memory/types.js';
 
 const MAX_RESPONSE_SIZE = 10_000; // Skip extraction for large responses (data dumps)
 
@@ -20,11 +21,6 @@ interface PostToolUseInput {
   tool_name?: string;
   tool_input?: Record<string, unknown>;
   tool_response?: unknown;
-}
-
-interface ExtractedFact {
-  fact: string;
-  category: string;
 }
 
 async function main(): Promise<void> {
@@ -83,9 +79,10 @@ async function main(): Promise<void> {
       vectordb = new QdrantVectorDB(config.qdrantUrl, config.qdrantApiKey);
     }
 
-    // Quick-exit if memory collection doesn't exist yet
-    const exists = await vectordb.hasCollection('eidetic_memory');
-    if (!exists) {
+    // Quick-exit if no memory collections exist yet
+    const globalExists = await vectordb.hasCollection('eidetic_global_memory');
+    const projectExists = await vectordb.hasCollection(`eidetic_${project}_memory`);
+    if (!globalExists && !projectExists) {
       writeOutput();
       return;
     }
@@ -133,7 +130,7 @@ function extractWebFetchFacts(url: string, responseStr: string): ExtractedFact[]
     if (url) {
       facts.push({
         fact: `URL ${url} returned 404 / not found`,
-        category: 'debugging',
+        kind: 'fact',
       });
     }
     return facts;
@@ -144,7 +141,7 @@ function extractWebFetchFacts(url: string, responseStr: string): ExtractedFact[]
   if (redirectMatch) {
     facts.push({
       fact: `URL ${url} redirects to ${redirectMatch[1]}`,
-      category: 'tools',
+      kind: 'fact',
     });
     return facts;
   }
@@ -154,7 +151,7 @@ function extractWebFetchFacts(url: string, responseStr: string): ExtractedFact[]
     const snippet = responseStr.slice(0, 150).replace(/\n/g, ' ').trim();
     facts.push({
       fact: `Fetching ${url} failed: ${snippet}`,
-      category: 'debugging',
+      kind: 'fact',
     });
     return facts;
   }
@@ -165,7 +162,7 @@ function extractWebFetchFacts(url: string, responseStr: string): ExtractedFact[]
     if (snippet.length > 20) {
       facts.push({
         fact: `Docs at ${url}: ${snippet}`,
-        category: 'tools',
+        kind: 'fact',
       });
     }
   }
@@ -187,7 +184,7 @@ function extractBashFacts(command: string, responseStr: string): ExtractedFact[]
     const shortCmd = command.slice(0, 100);
     facts.push({
       fact: `Command '${shortCmd}' failed: ${snippet}`,
-      category: 'debugging',
+      kind: 'fact',
     });
     return facts;
   }
@@ -200,7 +197,7 @@ function extractBashFacts(command: string, responseStr: string): ExtractedFact[]
     const manager = command.split(' ')[0];
     facts.push({
       fact: `Installed ${pkg} via ${manager}`,
-      category: 'tools',
+      kind: 'fact',
     });
     return facts;
   }
@@ -210,7 +207,7 @@ function extractBashFacts(command: string, responseStr: string): ExtractedFact[]
     const shortCmd = command.slice(0, 120).replace(/\n/g, ' ').trim();
     facts.push({
       fact: `Configured: ${shortCmd}`,
-      category: 'workflow',
+      kind: 'fact',
     });
   }
 

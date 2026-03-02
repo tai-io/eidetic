@@ -115,6 +115,52 @@ describe('reconcile', () => {
     expect(result.action).toBe('ADD');
   });
 
+  it('returns SUPERSEDE for 0.7-0.92 similarity with same kind', () => {
+    const newHash = hashMemory('Migrated to Postgres');
+    const existingHash = hashMemory('Migrating to Postgres next sprint');
+    // Vectors with cosine similarity ~0.85 (in 0.7-0.92 range)
+    const newVector = [1, 0, 0];
+    const existingVector = [0.85, 0.5, 0.15];
+
+    const candidates: ExistingMatch[] = [
+      {
+        id: 'old-intent',
+        memory: 'Migrating to Postgres next sprint',
+        hash: existingHash,
+        vector: existingVector,
+        score: 0.85,
+        kind: 'intent',
+      },
+    ];
+
+    const result = reconcile(newHash, newVector, candidates, 'intent');
+    expect(result.action).toBe('SUPERSEDE');
+    expect(result.existingId).toBe('old-intent');
+  });
+
+  it('returns ADD for 0.7-0.92 similarity with different kind', () => {
+    const newHash = hashMemory('We use Postgres for data');
+    const existingHash = hashMemory('Chose Postgres over MySQL');
+    // Vectors with cosine similarity ~0.85
+    const newVector = [1, 0, 0];
+    const existingVector = [0.85, 0.5, 0.15];
+
+    const candidates: ExistingMatch[] = [
+      {
+        id: 'old-decision',
+        memory: 'Chose Postgres over MySQL',
+        hash: existingHash,
+        vector: existingVector,
+        score: 0.85,
+        kind: 'decision',
+      },
+    ];
+
+    // New fact, existing is decision — different kinds, should ADD
+    const result = reconcile(newHash, newVector, candidates, 'fact');
+    expect(result.action).toBe('ADD');
+  });
+
   it('checks hash before similarity', () => {
     const hash = hashMemory('same text');
     const candidates: ExistingMatch[] = [

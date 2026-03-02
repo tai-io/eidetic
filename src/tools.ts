@@ -32,6 +32,7 @@ import {
   formatMemoryHistory,
 } from './format.js';
 import type { MemoryStore } from './memory/store.js';
+import type { MemoryKind } from './memory/types.js';
 
 function getErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -353,10 +354,10 @@ export class ToolHandlers {
   ): Promise<{ content: { type: string; text: string }[] }> {
     if (!this.memoryStore) return textResult('Error: Memory system not initialized.');
 
-    const facts = args.facts as { fact: string; category: string }[] | undefined;
+    const facts = args.facts as { fact: string; kind: MemoryKind; valid_at?: string }[] | undefined;
     if (!facts || !Array.isArray(facts) || facts.length === 0)
       return textResult(
-        'Error: "facts" is required. Provide an array of pre-extracted facts with fact and category fields.',
+        'Error: "facts" is required. Provide an array of pre-extracted facts with fact and kind fields.',
       );
 
     const source = args.source as string | undefined;
@@ -381,11 +382,11 @@ export class ToolHandlers {
       return textResult('Error: "query" is required. Provide a natural language search query.');
 
     const limit = (args.limit as number | undefined) ?? 10;
-    const category = args.category as string | undefined;
+    const kind = args.kind as string | undefined;
     const project = args.project as string | undefined;
 
     try {
-      const results = await this.memoryStore.searchMemory(query, limit, category, project);
+      const results = await this.memoryStore.searchMemory(query, limit, kind, project);
       return textResult(formatMemorySearchResults(results, query));
     } catch (err) {
       const message = getErrorMessage(err);
@@ -398,12 +399,12 @@ export class ToolHandlers {
   ): Promise<{ content: { type: string; text: string }[] }> {
     if (!this.memoryStore) return textResult('Error: Memory system not initialized.');
 
-    const category = args.category as string | undefined;
+    const kind = args.kind as string | undefined;
     const limit = (args.limit as number | undefined) ?? 50;
     const project = args.project as string | undefined;
 
     try {
-      const results = await this.memoryStore.listMemories(category, limit, project);
+      const results = await this.memoryStore.listMemories(kind, limit, project);
       return textResult(formatMemoryList(results));
     } catch (err) {
       const message = getErrorMessage(err);
