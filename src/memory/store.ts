@@ -90,11 +90,11 @@ export class MemoryStore {
       collections.push(globalCol);
     }
 
-    if (collections.length === 0) return [];
-
     // Also search global concepts for broader context
     const conceptsCol = globalConceptsCollectionName();
     const searchConcepts = await this.vectordb.hasCollection(conceptsCol);
+
+    if (collections.length === 0 && !searchConcepts) return [];
 
     // Search all relevant collections in parallel
     const allResults = await Promise.all(

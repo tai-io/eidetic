@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { Embedding } from '../embedding/types.js';
 import type { VectorDB } from '../vectordb/types.js';
 import { globalConceptsCollectionName } from '../paths.js';
@@ -35,7 +36,7 @@ export async function replicateToGlobalConcepts(
   // Upsert knowledge points into global collection
   let replicated = 0;
   for (const point of points) {
-    const id = `global_${project}_${replicated}`;
+    const id = randomUUID();
     await vectordb.updatePoint(globalCol, id, point.vector, {
       ...point.payload,
       content: String(point.payload.content ?? ''),

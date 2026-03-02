@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Embedding } from '../embedding/types.js';
 import type { VectorDB } from '../vectordb/types.js';
 import { getConfig } from '../config.js';
@@ -91,7 +91,7 @@ export async function runRaptor(
 
     // Embed summary and store in knowledge collection
     const vector = await embedding.embed(summary);
-    const pointId = `raptor_${project}_${i}`;
+    const pointId = randomUUID();
     await vectordb.updatePoint(knowledgeCol, pointId, vector, {
       content: summary,
       relativePath: pointId,
