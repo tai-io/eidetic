@@ -9,11 +9,13 @@
  */
 
 import fs from 'node:fs';
+import path from 'node:path';
 import { indexFiles } from '../core/targeted-indexer.js';
 import { createEmbedding } from '../embedding/factory.js';
 import { QdrantVectorDB } from '../vectordb/qdrant.js';
 import { bootstrapQdrant } from '../infra/qdrant-bootstrap.js';
 import { loadConfig } from '../config.js';
+import { pathToCollectionName, normalizePath } from '../paths.js';
 import type { VectorDB } from '../vectordb/types.js';
 
 async function main(): Promise<void> {
@@ -66,6 +68,19 @@ async function main(): Promise<void> {
         `(${result.totalChunks} chunks, ${result.skippedFiles} deleted) ` +
         `in ${result.durationMs}ms\n`,
     );
+
+    // Refresh RAPTOR knowledge summaries after re-indexing
+    if (config.raptorEnabled && result.processedFiles > 0) {
+      try {
+        const projectName = path.basename(manifest.projectPath);
+        const { runRaptor } = await import('../core/raptor.js');
+        const collectionName = pathToCollectionName(normalizePath(manifest.projectPath));
+        await runRaptor(projectName, collectionName, embedding, vectordb);
+        process.stderr.write(`[targeted-runner] RAPTOR updated knowledge\n`);
+      } catch (err) {
+        process.stderr.write(`[targeted-runner] RAPTOR failed (non-fatal): ${String(err)}\n`);
+      }
+    }
   } catch (err) {
     process.stderr.write(`[targeted-runner] Failed: ${String(err)}\n`);
     process.exit(1);

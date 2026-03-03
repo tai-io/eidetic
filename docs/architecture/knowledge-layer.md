@@ -86,6 +86,22 @@ This enables cross-project search without knowing which project to query.
 | `RAPTOR_TIMEOUT_MS` | `60000` | Max time for RAPTOR pipeline |
 | `RAPTOR_LLM_MODEL` | `gpt-4o-mini` | Model for cluster summarization |
 
+## Incremental RAPTOR
+
+RAPTOR also runs after targeted re-indexing (Stop hook → `targeted-runner.ts`). When files change during a session, the Stop hook spawns a background process that re-embeds changed code chunks, then refreshes RAPTOR summaries. This keeps knowledge summaries current without requiring a full `index_codebase`.
+
+Gated on `config.raptorEnabled && processedFiles > 0`. Non-fatal — failure is logged but does not affect code re-indexing.
+
+## Automatic Memory Extraction
+
+At PreCompact/SessionEnd, after writing the session note, the hook extracts reusable developer knowledge from the session note using an LLM call. Extracted facts are stored via `MemoryStore.addMemory()` with source `session-extract`.
+
+The extraction uses the formatted session note (not raw transcript) as input, which provides a balanced summary of the entire session rather than biasing toward the start or end of the conversation.
+
+The LLM prompt includes explicit negative examples to filter out session artifacts (debugging details, unconfirmed suggestions) and only extract reusable knowledge (facts, decisions, conventions, constraints, intent).
+
+**Key file:** `src/precompact/memory-extractor.ts`
+
 ## Key Files
 
 - `src/core/raptor.ts` — K-means clustering, LLM summarization, pipeline orchestration
@@ -94,3 +110,5 @@ This enables cross-project search without knowing which project to query.
 - `src/hooks/user-prompt-inject.ts` — UserPromptSubmit context injection
 - `src/paths.ts` — `knowledgeCollectionName()`, `globalConceptsCollectionName()`, `getRaptorDbPath()`
 - `src/errors.ts` — `RaptorError`
+- `src/hooks/targeted-runner.ts` — Incremental RAPTOR after targeted re-indexing
+- `src/precompact/memory-extractor.ts` — LLM extraction of knowledge from session notes

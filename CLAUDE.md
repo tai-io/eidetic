@@ -60,7 +60,7 @@ Single ESM package. MCP server over stdio that indexes codebases into a vector D
 - `core/snapshot-io.ts` — SQLite persistence of file-hash snapshots for incremental indexing (`snapshots.db`)
 - `state/registry.ts` — project name → path mapping at `~/.eidetic/registry.json`
 
-**Memory system:** Per-project Qdrant collections (`eidetic_<project>_memory`). Memories classified by `kind`: fact, decision, convention, constraint, intent. Search uses query-classified weighting profiles (feasibility/rationale/procedural). Supersession chains track memory evolution. See [docs/architecture/memory-system.md](docs/architecture/memory-system.md).
+**Memory system:** Per-project Qdrant collections (`eidetic_<project>_memory`). Memories classified by `kind`: fact, decision, convention, constraint, intent. Search uses query-classified weighting profiles (feasibility/rationale/procedural). Supersession chains track memory evolution. Memories are automatically extracted from session notes at PreCompact/SessionEnd via LLM (`memory-extractor.ts`), in addition to explicit `add_memory` calls and pattern-matched `post-tool-extract`. See [docs/architecture/memory-system.md](docs/architecture/memory-system.md).
 
 **Knowledge layer:** After indexing, RAPTOR clusters code chunks (K-means), LLM-summarizes each cluster, stores in `eidetic_<project>_knowledge`. Summaries replicate to `eidetic_global_concepts` for cross-project search. `search_memory` includes global concepts at 0.8x weight. `UserPromptSubmit` hook injects relevant concepts into prompts. Cache in `~/.eidetic/raptor.db`. See [docs/architecture/knowledge-layer.md](docs/architecture/knowledge-layer.md).
 

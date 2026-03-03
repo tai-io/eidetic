@@ -28,6 +28,10 @@ Without replication, `search_memory` without a project parameter wouldn't find k
 
 RAPTOR failure should never prevent indexing from completing. The pipeline is called with try/catch in the indexer, logging warnings on failure.
 
+### Session-end triggers
+
+RAPTOR also runs incrementally after targeted re-indexing (Stop hook). Memory extraction runs at PreCompact/SessionEnd, using the session note as LLM input. Both are non-fatal and gated on `raptorEnabled`.
+
 ## Consequences
 
 - Indexing takes longer (LLM calls for summarization, ~30-50s for small projects)
