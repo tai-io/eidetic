@@ -41,7 +41,7 @@ Single ESM package. MCP server over stdio that indexes codebases into a vector D
 
 **Concurrency control:** `tools.ts` has a per-path mutex (`withMutex`) preventing concurrent indexing of the same codebase. Multiple different codebases can index in parallel.
 
-**Incremental indexing:** `sync.ts` builds content-hash snapshots (SHA-256, truncated to 64 bits). On re-index, only added/modified files are re-embedded. Snapshots persist to `~/.eidetic/snapshots/`.
+**Incremental indexing:** `sync.ts` builds content-hash snapshots (SHA-256, truncated to 64 bits). On re-index, only added/modified files are re-embedded. Snapshots persist to `~/.eidetic/snapshots.db` (SQLite). See [architecture/snapshot-storage.md](architecture/snapshot-storage.md).
 
 **Global by design:** Every tool takes an explicit absolute `path` parameter. Zero `process.cwd()` usage. All persistent data lives in `~/.eidetic/` (configurable via `EIDETIC_DATA_DIR`).
 

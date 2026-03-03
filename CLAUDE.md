@@ -15,62 +15,12 @@ npm run format       # prettier --write src/**/*.ts
 ```
 
 ## Workflow Orchestration
-1. Plan Mode Default
-
-Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
-If something goes sideways, STOP and re-plan immediately — don't keep pushing
-Use plan mode for verification steps, not just building
-Write detailed specs upfront to reduce ambiguity
-
-2. Subagent Strategy
-
-Use subagents liberally to keep main context window clean
-Offload research, exploration, and parallel analysis to subagents
-For complex problems, throw more compute at it via subagents
-One task per subagent for focused execution
-
-3. Self-Improvement Loop
-
-After ANY correction from the user: update tasks/lessons.md with the pattern
-Write rules for yourself that prevent the same mistake
-Ruthlessly iterate on these lessons until mistake rate drops
-Review lessons at session start for relevant project
-
-4. Verification Before Done
-
-Never mark a task complete without proving it works
-Diff behavior between main and your changes when relevant
-Ask yourself: "Would a staff engineer approve this?"
-Run tests, check logs, demonstrate correctness
-
-5. Demand Elegance (Balanced)
-
-For non-trivial changes: pause and ask "is there a more elegant way?"
-If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
-Skip this for simple, obvious fixes — don't over-engineer
-Challenge your own work before presenting it
-
-6. Autonomous Bug Fixing
-
-When given a bug report: just fix it. Don't ask for hand-holding
-Point at logs, errors, failing tests — then resolve them
-Zero context switching required from the user
-Go fix failing CI tests without being told how
-
-Task Management
-
-Plan First: Write plan to tasks/todo.md with checkable items
-Verify Plan: Check in before starting implementation
-Track Progress: Mark items complete as you go
-Explain Changes: High-level summary at each step
-Document Results: Add review section to tasks/todo.md
-Capture Lessons: Update tasks/lessons.md after corrections
-
-Core Principles
-
-Simplicity First: Make every change as simple as possible. Impact minimal code.
-No Laziness: Find root causes. No temporary fixes. Senior developer standards.
-Minimal Impact: Changes should only touch what's necessary. Avoid introducing bugs.
+- **Always create a new git worktree before starting any feature work.** Invoke the `superpowers:using-git-worktrees` skill (via the Skill tool) before touching code for a new feature or task.
+- **Always use test-driven development.** Invoke the `superpowers:test-driven-development` skill (via the Skill tool) before writing any implementation code.
+- **Always start with checking, (after done write, and update), the docs for any architecture and design decision changes**
+- **Simplicity First**: Make every change as simple as possible. Impact minimal code.
+- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
+- **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
 
 ## Testing
 
@@ -103,11 +53,11 @@ Single ESM package. MCP server over stdio that indexes codebases into a vector D
 
 **Concurrency control:** `tools.ts` has a per-path mutex (`withMutex`) preventing concurrent indexing of the same codebase.
 
-**Incremental indexing:** `core/sync.ts` builds content-hash snapshots (SHA-256, truncated). On re-index, only added/modified files are re-embedded. Snapshots persist to `~/.eidetic/snapshots/`.
+**Incremental indexing:** `core/sync.ts` builds content-hash snapshots (SHA-256, truncated). On re-index, only added/modified files are re-embedded. Snapshots persist to `~/.eidetic/snapshots.db` (SQLite via `better-sqlite3`).
 
 **State layers:**
 - `state/snapshot.ts` — in-memory `StateManager` tracks indexing status per codebase (idle/indexing/indexed/error + progress)
-- `core/snapshot-io.ts` — filesystem persistence of file-hash snapshots for incremental indexing
+- `core/snapshot-io.ts` — SQLite persistence of file-hash snapshots for incremental indexing (`snapshots.db`)
 - `state/registry.ts` — project name → path mapping at `~/.eidetic/registry.json`
 
 **Config:** `config.ts` — Zod-validated, entirely env-var driven. `loadConfig()` reads `process.env`, caches result. No config files parsed at runtime (except `messages.yaml` for user-facing setup text).

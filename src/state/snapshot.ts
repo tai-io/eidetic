@@ -1,6 +1,5 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { getSnapshotDir, pathToCollectionName } from '../paths.js';
+import { pathToCollectionName } from '../paths.js';
+import { listSnapshotCollections, deleteSnapshotByCollection } from '../core/snapshot-io.js';
 import type { VectorDB } from '../vectordb/types.js';
 
 export type CodebaseStatus = 'idle' | 'indexing' | 'indexed' | 'error';
@@ -93,14 +92,11 @@ export class StateManager {
 }
 
 export async function cleanupOrphanedSnapshots(vectordb: VectorDB): Promise<number> {
-  const snapshotDir = getSnapshotDir();
   let cleaned = 0;
 
   try {
-    if (!fs.existsSync(snapshotDir)) return 0;
-
-    const files = fs.readdirSync(snapshotDir).filter((f) => f.endsWith('.json'));
-    if (files.length === 0) return 0;
+    const collections = listSnapshotCollections();
+    if (collections.length === 0) return 0;
 
     const probeResult = await vectordb.hasCollection('__eidetic_connectivity_probe__');
     if (probeResult) {
@@ -108,13 +104,11 @@ export async function cleanupOrphanedSnapshots(vectordb: VectorDB): Promise<numb
       return 0;
     }
 
-    for (const file of files) {
-      const collectionName = path.basename(file, '.json');
+    for (const collectionName of collections) {
       try {
         const exists = await vectordb.hasCollection(collectionName);
         if (!exists) {
-          const filePath = path.join(snapshotDir, file);
-          fs.unlinkSync(filePath);
+          deleteSnapshotByCollection(collectionName);
           console.log(`Cleaned orphaned snapshot: ${collectionName}`);
           cleaned++;
         }

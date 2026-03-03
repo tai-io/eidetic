@@ -14,6 +14,7 @@ vi.mock('../../paths.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../paths.js')>();
   return {
     ...actual,
+    getSnapshotDbPath: () => path.join(tmpDataDir, 'snapshots.db'),
     getSnapshotDir: () => path.join(tmpDataDir, 'snapshots'),
     getDataDir: () => tmpDataDir,
     getCacheDir: () => path.join(tmpDataDir, 'cache'),

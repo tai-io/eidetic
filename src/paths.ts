@@ -41,6 +41,10 @@ export function pathToCollectionName(absolutePath: string): string {
   return `eidetic_${safe}`;
 }
 
+export function getSnapshotDbPath(): string {
+  return `${getDataDir()}/snapshots.db`;
+}
+
 export function getDocMetadataPath(): string {
   return `${getDataDir()}/doc-metadata.json`;
 }
