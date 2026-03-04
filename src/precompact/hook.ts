@@ -15,11 +15,13 @@ import { updateSessionIndex, readSessionIndex } from './tier0-writer.js';
 import { spawnBackgroundIndexer } from './session-indexer.js';
 import { getNotesDir, getProjectId } from './utils.js';
 import { extractMemoriesFromTranscript } from './memory-extractor.js';
+import { spawn } from 'node:child_process';
 
-// Resolve index-runner path at module boundary (follows project convention)
+// Resolve paths at module boundary (follows project convention)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const INDEX_RUNNER_PATH = path.join(__dirname, 'index-runner.js');
+const BUFFER_RUNNER_PATH = path.join(__dirname, '..', 'memory', 'buffer-runner.js');
 
 // Zod schema — handles both PreCompact and SessionEnd hook events
 const HookInputSchema = z.discriminatedUnion('hook_event_name', [
@@ -110,6 +112,9 @@ async function main(): Promise<void> {
     if (!skippedNote) {
       void extractAndStoreMemories(session, projectId);
     }
+
+    // Flush remaining buffer items for this session (fire-and-forget)
+    void flushSessionBuffer(hookInput.session_id, projectId);
   } catch (err) {
     outputError(err instanceof Error ? err.message : String(err));
   }
@@ -157,6 +162,38 @@ async function extractAndStoreMemories(
     process.stderr.write(`[eidetic] Extracted ${memories.length} memories from session\n`);
   } catch (err) {
     process.stderr.write(`[eidetic] Memory extraction failed (non-fatal): ${String(err)}\n`);
+  }
+}
+
+async function flushSessionBuffer(sessionId: string, project: string): Promise<void> {
+  try {
+    const { getBufferDbPath } = await import('../paths.js');
+    const { MemoryBuffer } = await import('../memory/buffer.js');
+    const buffer = new MemoryBuffer(getBufferDbPath());
+
+    const count = buffer.count(sessionId);
+    if (count === 0) return;
+
+    // Only spawn if not already consolidating
+    if (!buffer.isConsolidating(sessionId)) {
+      buffer.markConsolidating(sessionId);
+      try {
+        const child = spawn(process.execPath, [BUFFER_RUNNER_PATH, sessionId, project], {
+          detached: true,
+          stdio: 'ignore',
+          env: process.env,
+          windowsHide: true,
+        });
+        child.unref();
+        process.stderr.write(
+          `[eidetic] Flushing ${count} buffered items for session ${sessionId}\n`,
+        );
+      } catch {
+        buffer.clearConsolidating(sessionId);
+      }
+    }
+  } catch (err) {
+    process.stderr.write(`[eidetic] Buffer flush failed (non-fatal): ${String(err)}\n`);
   }
 }
 

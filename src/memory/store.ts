@@ -7,7 +7,10 @@ import type {
   ExtractedFact,
   MemoryKind,
   MemoryPayload,
+  GraphRelation,
+  MemorySearchResult,
 } from './types.js';
+import type { MemoryGraph } from './graph.js';
 import { MemoryHistory } from './history.js';
 import { hashMemory, reconcile, type ExistingMatch } from './reconciler.js';
 import {
@@ -28,12 +31,17 @@ function collectionName(project: string): string {
 export class MemoryStore {
   private initializedCollections = new Set<string>();
   private initPromises = new Map<string, Promise<string>>();
+  private graph?: MemoryGraph;
 
   constructor(
     private embedding: Embedding,
     private vectordb: VectorDB,
     private history: MemoryHistory,
   ) {}
+
+  setGraph(graph: MemoryGraph): void {
+    this.graph = graph;
+  }
 
   private async ensureCollection(project: string): Promise<string> {
     const name = collectionName(project);
@@ -166,6 +174,56 @@ export class MemoryStore {
     void this.bumpAccessCounts(topItems);
 
     return ranked;
+  }
+
+  /**
+   * Search memory and enrich with graph relations from top results.
+   * Returns both memories and any related entity relationships.
+   */
+  async searchMemoryWithGraph(
+    query: string,
+    limit = 10,
+    kind?: string,
+    project?: string,
+  ): Promise<MemorySearchResult> {
+    const memories = await this.searchMemory(query, limit, kind, project);
+    const relations = this.getGraphRelations(memories);
+    return { memories, relations: relations.length > 0 ? relations : undefined };
+  }
+
+  private getGraphRelations(memories: MemoryItem[]): GraphRelation[] {
+    if (!this.graph) return [];
+
+    const relations: GraphRelation[] = [];
+    const seen = new Set<string>();
+
+    for (const mem of memories.slice(0, 5)) {
+      // Extract potential entity names from memory text (words that look like identifiers)
+      const words = mem.memory.split(/[\s,.:;()[\]{}'"]+/).filter((w) => w.length > 2);
+      for (const word of words) {
+        const node = this.graph.findNode(word);
+        if (!node) continue;
+
+        const related = this.graph.getRelated(word);
+        for (const edge of related.edges) {
+          const sourceNode = related.nodes.find((n) => n.id === edge.sourceId);
+          const targetNode = related.nodes.find((n) => n.id === edge.targetId);
+          if (!sourceNode || !targetNode) continue;
+
+          const key = `${sourceNode.name}|${edge.relationship}|${targetNode.name}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+
+          relations.push({
+            source: sourceNode.name,
+            relationship: edge.relationship,
+            target: targetNode.name,
+          });
+        }
+      }
+    }
+
+    return relations;
   }
 
   async listMemories(kind?: string, limit = 50, project?: string): Promise<MemoryItem[]> {

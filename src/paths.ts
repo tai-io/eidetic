@@ -53,6 +53,10 @@ export function getMemoryDbPath(): string {
   return `${getDataDir()}/memory-history.db`;
 }
 
+export function getBufferDbPath(): string {
+  return `${getDataDir()}/buffer.db`;
+}
+
 export function getRaptorDbPath(): string {
   return `${getDataDir()}/raptor.db`;
 }

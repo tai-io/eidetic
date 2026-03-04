@@ -57,6 +57,87 @@ export interface LegacyExtractedFact {
  * Typed shape of memory payloads stored in VectorDB.
  * Used to safely cast `Record<string, unknown>` from VectorDB.getById().
  */
+// --- Buffer types ---
+
+export interface BufferItem {
+  id: number;
+  session_id: string;
+  content: string;
+  source: string;
+  tool_name: string | null;
+  project: string;
+  captured_at: string;
+}
+
+// --- Graph types ---
+
+export type NodeType =
+  | 'file'
+  | 'function'
+  | 'class'
+  | 'module'
+  | 'decision'
+  | 'convention'
+  | 'constraint'
+  | 'project';
+
+export type RelationType =
+  | 'imports'
+  | 'calls'
+  | 'depends_on'
+  | 'contains'
+  | 'motivates'
+  | 'contradicts'
+  | 'supersedes'
+  | 'applies_to'
+  | 'related_to';
+
+export interface GraphNode {
+  id: string;
+  name: string;
+  type: NodeType;
+  project: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GraphEdge {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  relationship: RelationType;
+  project: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface GraphTriple {
+  source: { name: string; type: NodeType };
+  relationship: RelationType;
+  target: { name: string; type: NodeType };
+}
+
+export interface GraphRelation {
+  source: string;
+  relationship: string;
+  target: string;
+}
+
+export interface MemorySearchResult {
+  memories: MemoryItem[];
+  relations?: GraphRelation[];
+}
+
+// --- Consolidation output ---
+
+export interface ConsolidationResult {
+  memories: ExtractedFact[];
+  graph: GraphTriple[];
+}
+
+// --- VectorDB payload ---
+
 export interface MemoryPayload {
   content?: string;
   memory?: string;

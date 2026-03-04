@@ -81,6 +81,7 @@ async function withMutex<T>(key: string, fn: () => Promise<T>): Promise<T> {
 
 export class ToolHandlers {
   private memoryStore: MemoryStore | null = null;
+  private memoryGraph: import('./memory/graph.js').MemoryGraph | null = null;
 
   constructor(
     private embedding: Embedding,
@@ -90,6 +91,13 @@ export class ToolHandlers {
 
   setMemoryStore(store: MemoryStore): void {
     this.memoryStore = store;
+  }
+
+  setMemoryGraph(graph: import('./memory/graph.js').MemoryGraph): void {
+    this.memoryGraph = graph;
+    if (this.memoryStore) {
+      this.memoryStore.setGraph(graph);
+    }
   }
 
   async handleIndexCodebase(
@@ -381,8 +389,15 @@ export class ToolHandlers {
     const project = args.project as string | undefined;
 
     try {
-      const results = await this.memoryStore.searchMemory(query, limit, kind, project);
-      return textResult(formatMemorySearchResults(results, query));
+      const result = await this.memoryStore.searchMemoryWithGraph(query, limit, kind, project);
+      let output = formatMemorySearchResults(result.memories, query);
+      if (result.relations && result.relations.length > 0) {
+        output += '\n\n## Related Entities\n';
+        for (const rel of result.relations) {
+          output += `- ${rel.source} —[${rel.relationship}]→ ${rel.target}\n`;
+        }
+      }
+      return textResult(output);
     } catch (err) {
       const message = getErrorMessage(err);
       return textResult(`Error searching memories: ${message}`);
@@ -445,6 +460,72 @@ export class ToolHandlers {
       const message = getErrorMessage(err);
       return textResult(`Error retrieving memory history: ${message}`);
     }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async handleBrowseGraph(
+    args: Record<string, unknown>,
+  ): Promise<{ content: { type: string; text: string }[] }> {
+    if (!this.memoryGraph) {
+      return textResult('Knowledge graph not initialized. No graph data available yet.');
+    }
+
+    const entity = args.entity as string | undefined;
+    const typeFilter = args.type as string | undefined;
+    const projectFilter = args.project as string | undefined;
+
+    if (entity) {
+      const node = this.memoryGraph.findNode(
+        entity,
+        typeFilter as import('./memory/types.js').NodeType | undefined,
+        projectFilter,
+      );
+      if (!node) return textResult(`No entity found: "${entity}"`);
+
+      const related = this.memoryGraph.getRelated(entity);
+      let output = `## ${node.name} (${node.type})\n`;
+      output += `Project: ${node.project}\n\n`;
+
+      if (related.edges.length > 0) {
+        output += '### Relationships\n';
+        for (const edge of related.edges) {
+          const source = related.nodes.find((n) => n.id === edge.sourceId);
+          const target = related.nodes.find((n) => n.id === edge.targetId);
+          if (source && target) {
+            output += `- ${source.name} —[${edge.relationship}]→ ${target.name}\n`;
+          }
+        }
+      } else {
+        output += 'No relationships found.\n';
+      }
+
+      return textResult(output);
+    }
+
+    // No entity specified — show summary
+    const json = this.memoryGraph.toJSON();
+    let nodes = json.nodes;
+    if (typeFilter) nodes = nodes.filter((n) => n.type === typeFilter);
+    if (projectFilter) nodes = nodes.filter((n) => n.project === projectFilter);
+
+    let output = `## Knowledge Graph Summary\n`;
+    output += `Nodes: ${json.nodes.length} | Edges: ${json.edges.length}\n\n`;
+
+    // Group by type
+    const byType = new Map<string, string[]>();
+    for (const node of nodes) {
+      if (!byType.has(node.type)) byType.set(node.type, []);
+      byType.get(node.type)!.push(node.name);
+    }
+
+    for (const [type, names] of byType) {
+      output += `### ${type} (${names.length})\n`;
+      output += names.slice(0, 20).join(', ');
+      if (names.length > 20) output += `, ... (+${names.length - 20} more)`;
+      output += '\n\n';
+    }
+
+    return textResult(output);
   }
 
   async handleBrowseStructure(

@@ -111,6 +111,20 @@ async function main() {
       const memoryHistory = new MemoryHistory(getMemoryDbPath());
       const memoryStore = new MemoryStore(embedding, vectordb, memoryHistory);
       handlers.setMemoryStore(memoryStore);
+
+      // Initialize graph memory (non-fatal)
+      try {
+        const { MemoryGraph } = await import('./memory/graph.js');
+        const { getBufferDbPath } = await import('./paths.js');
+        const graph = new MemoryGraph(getBufferDbPath());
+        handlers.setMemoryGraph(graph);
+        console.log('Knowledge graph initialized.');
+      } catch (graphErr) {
+        console.warn(
+          `Knowledge graph init failed (non-fatal): ${graphErr instanceof Error ? graphErr.message : String(graphErr)}`,
+        );
+      }
+
       console.log('Memory system initialized.');
     } catch (memErr) {
       console.warn(
@@ -182,6 +196,8 @@ async function main() {
         return handlers.handleDeleteMemory(args ?? {});
       case 'memory_history':
         return handlers.handleMemoryHistory(args ?? {});
+      case 'browse_graph':
+        return handlers.handleBrowseGraph(args ?? {});
       case 'cleanup_vectors':
         return handlers.handleCleanupVectors(args ?? {});
       case 'browse_structure':

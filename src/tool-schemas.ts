@@ -511,6 +511,30 @@ export const TOOL_DEFINITIONS = [
     },
   },
   {
+    name: 'browse_graph',
+    description:
+      'Explore the knowledge graph of entity relationships extracted from memory consolidation.\nShows how code entities (files, functions, classes) and knowledge entities (decisions, conventions) relate to each other.\n\nOptionally filter by entity name, type, or project.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        entity: {
+          type: 'string',
+          description: 'Entity name to explore (e.g., "auth.ts", "validateJWT").',
+        },
+        type: {
+          type: 'string',
+          description:
+            'Filter by node type: file, function, class, module, decision, convention, constraint, project.',
+        },
+        project: {
+          type: 'string',
+          description: 'Filter by project name.',
+        },
+      },
+      required: [],
+    },
+  },
+  {
     name: '__IMPORTANT',
     description:
       'Workflow guidance for efficient code search. ALWAYS index before searching. Use project names after first index. Use extensionFilter to narrow results.',

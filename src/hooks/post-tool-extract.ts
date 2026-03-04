@@ -9,9 +9,16 @@
  * Matches: WebFetch | Bash
  */
 
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { ExtractedFact } from '../memory/types.js';
+
+const FLUSH_THRESHOLD = 20; // Matches buffer.ts — inlined to avoid pulling in better-sqlite3 at module load
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const BUFFER_RUNNER_PATH = path.join(__dirname, '..', 'memory', 'buffer-runner.js');
 
 const MAX_RESPONSE_SIZE = 10_000; // Skip extraction for large responses (data dumps)
 
@@ -56,42 +63,23 @@ async function main(): Promise<void> {
 
   try {
     const cwd = input.cwd ?? process.cwd();
+    const sessionId = input.session_id ?? 'unknown';
     const project = detectProject(cwd);
 
-    const [{ loadConfig }, { createEmbedding }, { MemoryHistory }, { MemoryStore }] =
-      await Promise.all([
-        import('../config.js'),
-        import('../embedding/factory.js'),
-        import('../memory/history.js'),
-        import('../memory/store.js'),
-      ]);
+    const { getBufferDbPath } = await import('../paths.js');
+    const { MemoryBuffer } = await import('../memory/buffer.js');
+    const buffer = new MemoryBuffer(getBufferDbPath());
 
-    const config = loadConfig();
-    const embedding = createEmbedding(config);
-    await embedding.initialize();
-
-    let vectordb;
-    if (config.vectordbProvider === 'milvus') {
-      const { MilvusVectorDB } = await import('../vectordb/milvus.js');
-      vectordb = new MilvusVectorDB();
-    } else {
-      const { QdrantVectorDB } = await import('../vectordb/qdrant.js');
-      vectordb = new QdrantVectorDB(config.qdrantUrl, config.qdrantApiKey);
+    // Write each fact to the buffer instead of directly to the store
+    for (const fact of facts) {
+      buffer.add(sessionId, fact.fact, 'post-tool-extract', toolName, project);
     }
 
-    // Quick-exit if no memory collections exist yet
-    const globalExists = await vectordb.hasCollection('eidetic_global_memory');
-    const projectExists = await vectordb.hasCollection(`eidetic_${project}_memory`);
-    if (!globalExists && !projectExists) {
-      writeOutput();
-      return;
+    // Check if we should trigger consolidation
+    if (buffer.count(sessionId) >= FLUSH_THRESHOLD && !buffer.isConsolidating(sessionId)) {
+      buffer.markConsolidating(sessionId);
+      spawnBufferRunner(sessionId, project);
     }
-
-    const { getMemoryDbPath } = await import('../paths.js');
-    const history = new MemoryHistory(getMemoryDbPath());
-    const store = new MemoryStore(embedding, vectordb, history);
-
-    await store.addMemory(facts, 'post-tool-extract', project);
   } catch (err) {
     process.stderr.write(`post-tool-extract failed: ${String(err)}\n`);
   }
@@ -247,6 +235,20 @@ function readStdin(): Promise<string> {
     });
     process.stdin.on('error', reject);
   });
+}
+
+function spawnBufferRunner(sessionId: string, project: string): void {
+  try {
+    const child = spawn(process.execPath, [BUFFER_RUNNER_PATH, sessionId, project], {
+      detached: true,
+      stdio: 'ignore',
+      env: process.env,
+      windowsHide: true,
+    });
+    child.unref();
+  } catch {
+    // Best effort — buffer items remain for next attempt
+  }
 }
 
 function writeOutput(): void {
