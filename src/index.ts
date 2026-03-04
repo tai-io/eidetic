@@ -26,6 +26,12 @@ import { MemoryStore } from './memory/store.js';
 import { MemoryHistory } from './memory/history.js';
 import { getMemoryDbPath } from './paths.js';
 
+const GETTING_STARTED = `# Eidetic — Getting Started
+
+1. \`index_codebase(path="...")\` — index this codebase (one-time, ~30s)
+2. \`search_code(query="how does X work")\` — search by meaning
+3. That's it. Use \`/index\` for a guided walkthrough.`;
+
 const WORKFLOW_GUIDANCE = `# Eidetic Code Search Workflow
 
 **Before searching:** Ensure the codebase is indexed.
@@ -89,9 +95,12 @@ async function main() {
       vectordb = new MilvusVectorDB();
       console.log(`Using Milvus at ${config.milvusAddress}`);
     } else {
-      const qdrantUrl = await bootstrapQdrant();
+      const { url: qdrantUrl, provisioned: qdrantProvisioned } = await bootstrapQdrant();
       vectordb = new QdrantVectorDB(qdrantUrl);
       console.log(`Using Qdrant at ${qdrantUrl}`);
+      if (qdrantProvisioned) {
+        console.log('Qdrant was auto-provisioned via Docker (container: eidetic-qdrant).');
+      }
     }
 
     const cleaned = await cleanupOrphanedSnapshots(vectordb);
@@ -141,8 +150,11 @@ async function main() {
     const { name, arguments: args } = request.params;
 
     // Tools that work without initialization (no embedding/vectordb needed)
-    if (name === '__IMPORTANT')
-      return { content: [{ type: 'text' as const, text: WORKFLOW_GUIDANCE }] };
+    if (name === '__IMPORTANT') {
+      const hasProjects = Object.keys(listProjects()).length > 0;
+      const guidance = hasProjects ? WORKFLOW_GUIDANCE : GETTING_STARTED;
+      return { content: [{ type: 'text' as const, text: guidance }] };
+    }
     if (name === 'read_file') return handleReadFile(args ?? {});
 
     if (!handlers) {

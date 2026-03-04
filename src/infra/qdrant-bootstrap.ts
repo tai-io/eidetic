@@ -8,13 +8,18 @@ const CONTAINER_NAME = 'eidetic-qdrant';
 const HEALTH_TIMEOUT_MS = 30_000;
 const HEALTH_POLL_MS = 500;
 
-export async function bootstrapQdrant(): Promise<string> {
+export interface BootstrapResult {
+  url: string;
+  provisioned: boolean;
+}
+
+export async function bootstrapQdrant(): Promise<BootstrapResult> {
   const config = getConfig();
   const url = config.qdrantUrl;
 
   if (await isQdrantHealthy(url)) {
     console.log(`Qdrant reachable at ${url}`);
-    return url;
+    return { url, provisioned: false };
   }
 
   console.log(`Qdrant not reachable at ${url}. Attempting Docker auto-provision...`);
@@ -27,6 +32,7 @@ export async function bootstrapQdrant(): Promise<string> {
   }
 
   const containerState = getContainerState();
+  let provisioned = false;
 
   if (containerState === 'running') {
     console.log(`Container "${CONTAINER_NAME}" is running. Waiting for health...`);
@@ -55,6 +61,7 @@ export async function bootstrapQdrant(): Promise<string> {
       ],
       { stdio: 'pipe' },
     );
+    provisioned = true;
   }
 
   const healthy = await waitForHealth(url, HEALTH_TIMEOUT_MS);
@@ -66,7 +73,7 @@ export async function bootstrapQdrant(): Promise<string> {
   }
 
   console.log(`Qdrant auto-provisioned and healthy at ${url}`);
-  return url;
+  return { url, provisioned };
 }
 
 async function isQdrantHealthy(url: string): Promise<boolean> {

@@ -27,8 +27,22 @@ if ! node -e "
   claude mcp add -s user "${_env_args[@]}" -- claude-eidetic npx claude-eidetic 2>/dev/null || true
 fi
 
-# Inject Tier-0 context from most recent session (non-blocking, best-effort)
-node "${CLAUDE_PLUGIN_ROOT}/dist/precompact/tier0-inject.js" 2>/dev/null || true
+# Detect first-run: if registry.json is empty/missing, show welcome message
+_is_first_run=$(node -e "
+  const fs = require('fs'), path = require('path'), os = require('os');
+  try {
+    const p = path.join(os.homedir(), '.eidetic', 'registry.json');
+    const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+    process.exit(Object.keys(d).length > 0 ? 1 : 0);
+  } catch (e) { process.exit(0); }
+" 2>/dev/null && echo "yes" || echo "no")
 
-# Inject stored memories from vector DB (non-blocking, best-effort)
-node "${CLAUDE_PLUGIN_ROOT}/dist/precompact/memory-inject.js" 2>/dev/null || true
+if [ "$_is_first_run" = "yes" ]; then
+  node "${CLAUDE_PLUGIN_ROOT}/dist/setup-message.js" "welcome" 2>/dev/null || true
+else
+  # Inject Tier-0 context from most recent session (non-blocking, best-effort)
+  node "${CLAUDE_PLUGIN_ROOT}/dist/precompact/tier0-inject.js" 2>/dev/null || true
+
+  # Inject stored memories from vector DB (non-blocking, best-effort)
+  node "${CLAUDE_PLUGIN_ROOT}/dist/precompact/memory-inject.js" 2>/dev/null || true
+fi

@@ -39,4 +39,10 @@ index_codebase(path="<PROJECT_PATH>")
 get_indexing_status(path="<PROJECT_PATH>")
 ```
 
-Report: files indexed, chunk count, status. Suggest: `try /eidetic:search <example>`.
+Report: files indexed, chunk count, status.
+
+## Step 5: What's Next
+
+Suggest these next actions:
+- `search_code("how does X work")` — try a semantic search on this codebase
+- `/cache-docs <library>` — cache docs for a library you use frequently (e.g., React, Express)

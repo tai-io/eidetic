@@ -35,7 +35,7 @@ async function main(): Promise<void> {
       const { MilvusVectorDB } = await import('../vectordb/milvus.js');
       vectordb = new MilvusVectorDB();
     } else {
-      const qdrantUrl = await bootstrapQdrant();
+      const { url: qdrantUrl } = await bootstrapQdrant();
       vectordb = new QdrantVectorDB(qdrantUrl, config.qdrantApiKey);
     }
 

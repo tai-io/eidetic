@@ -1,5 +1,10 @@
-# claude-eidetic
-
+```
+┌─────────────────────────────────────────────┐
+│  ╔═╗╦╔╦╗╔═╗╔╦╗╦╔═╗                         │
+│  ║╣ ║ ║║║╣  ║ ║║    semantic code search    │
+│  ╚═╝╩═╩╝╚═╝ ╩ ╩╚═╝  for Claude Code        │
+└─────────────────────────────────────────────┘
+```
 
 [![tests](https://img.shields.io/github/actions/workflow/status/eidetics/claude-eidetic/ci.yml?style=flat-square&label=tests)](https://github.com/eidetics/claude-eidetic/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/claude-eidetic)](https://www.npmjs.com/package/claude-eidetic)
@@ -9,7 +14,7 @@ Semantic code search, persistent memory, and session continuity for Claude Code.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 claude plugin install eidetics/claude-eidetic
@@ -28,9 +33,9 @@ search_code("how does authentication work")
 
 ---
 
-## ✨ Features
+## Features
 
-### 🔍 Semantic Code Search
+### Semantic Code Search
 
 **Find code by meaning, not keywords.** Search across your entire codebase with natural language, returning the most relevant functions and classes, not a list of files to read.
 
@@ -40,7 +45,7 @@ search_code("authentication middleware", extensionFilter=[".ts"])
 search_code(project="backend", query="auth flow")
 ```
 
-### 🏗️ Architecture at a Glance
+### Architecture at a Glance
 
 **Get every class, function, and method in one call.** `browse_structure` returns a condensed map of your codebase with signatures, grouped by file, replacing a Glob + Read cascade with a single tool call.
 
@@ -49,7 +54,7 @@ browse_structure(path="/my/project", kind="class")
 list_symbols(path="/my/project", nameFilter="handle")
 ```
 
-### 📚 Documentation Cache
+### Documentation Cache
 
 **Fetch docs once, search them forever.** Cache external documentation as searchable embeddings. Retrieve relevant passages instantly, far cheaper than re-fetching the same page each session.
 
@@ -58,7 +63,7 @@ index_document(content=..., library="react", topic="hooks", source="https://..."
 search_documents("React useCallback dependencies", library="react")
 ```
 
-### 🧠 Persistent Memory
+### Persistent Memory
 
 **Claude remembers your preferences between sessions.** `add_memory` uses an LLM to extract structured facts from conversation text (coding style, architecture decisions, debugging insights) and deduplicates them semantically. Not a static config file you forget to update.
 
@@ -67,11 +72,11 @@ add_memory("Always use absolute imports, never relative")
 search_memory("how does this team handle errors")
 ```
 
-### 🔄 Session Continuity
+### Session Continuity
 
 **Every session picks up where the last one left off.** When a session ends (or context compacts mid-session), Eidetic automatically writes a structured note capturing files changed, tasks, commands, and decisions. `/catchup` at the start of a new session reconstructs exactly where you were. No user action required.
 
-### 👻 Invisible Optimizations
+### Invisible Optimizations
 
 Eight hook events fire automatically, nudging toward cheaper tools, redirecting file reads for 15-20% token savings, tracking changed files, and saving session state on exit.
 
@@ -93,7 +98,7 @@ Eight hook events fire automatically, nudging toward cheaper tools, redirecting 
 
 ---
 
-## 🗺️ When to Use What
+## When to Use What
 
 | Need | Use | Notes |
 |---|---|---|
@@ -107,7 +112,7 @@ Eight hook events fire automatically, nudging toward cheaper tools, redirecting 
 
 ---
 
-## 📖 Skills Reference
+## Skills Reference
 
 | Skill | What it does |
 |---|---|
@@ -120,7 +125,7 @@ Eight hook events fire automatically, nudging toward cheaper tools, redirecting 
 ---
 
 <details>
-<summary><strong>🔥 Why does this exist? (The Problem)</strong></summary>
+<summary><strong>Why does this exist? (The Problem)</strong></summary>
 
 Every new Claude Code session starts cold. You re-explain the architecture. You re-fetch the same docs. Claude reads the same files repeatedly, burning tokens just to get back to where you were.
 
@@ -135,7 +140,7 @@ Every new Claude Code session starts cold. You re-explain the architecture. You 
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### Plugin (recommended)
 
@@ -144,6 +149,9 @@ claude plugin install eidetics/claude-eidetic
 ```
 
 The plugin auto-starts the MCP server, installs skills, and configures hooks.
+
+<details>
+<summary><strong>Alternative installation methods</strong></summary>
 
 ### npx (manual MCP config)
 
@@ -177,6 +185,8 @@ cd claude-eidetic
 npm install && npx tsc && npm start
 ```
 
+</details>
+
 ### Requirements
 
 - Node.js >= 20.0.0
@@ -186,7 +196,7 @@ npm install && npx tsc && npm start
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 All configuration is via environment variables. No config files.
 
@@ -223,10 +233,57 @@ export MEMORY_LLM_PROVIDER=ollama
 
 ---
 
-<details>
-<summary><strong>🔧 Tool Reference</strong></summary>
+## Troubleshooting
 
-### 🔍 Code Search
+### `OPENAI_API_KEY` not set
+
+Eidetic needs an embedding API key. Set it in your shell profile:
+
+```bash
+export OPENAI_API_KEY=sk-...   # macOS/Linux
+setx OPENAI_API_KEY sk-...     # Windows
+```
+
+Or use Ollama for free local embeddings: `export EMBEDDING_PROVIDER=ollama`
+
+### Docker not installed (Qdrant can't auto-provision)
+
+Eidetic auto-provisions Qdrant via Docker. If Docker isn't installed:
+- **Option A:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and retry
+- **Option B:** Run Qdrant manually and set `QDRANT_URL` to point to it
+
+### Qdrant unreachable at custom URL
+
+If you set `QDRANT_URL` to a remote instance, verify it's reachable:
+
+```bash
+curl http://your-qdrant-host:6333/healthz
+```
+
+### Tree-sitter native build fails on Windows
+
+Tree-sitter requires C/C++ build tools. Install them:
+
+```bash
+npm install -g windows-build-tools   # or install Visual Studio Build Tools
+```
+
+If the build still fails, Eidetic falls back to line-based chunking (works, but less precise).
+
+### Ollama model not pulled
+
+If using `EMBEDDING_PROVIDER=ollama`, ensure the model is available:
+
+```bash
+ollama pull nomic-embed-text
+```
+
+---
+
+<details>
+<summary><strong>Tool Reference</strong></summary>
+
+### Code Search
 
 | Tool | Description |
 |---|---|
@@ -239,20 +296,20 @@ export MEMORY_LLM_PROVIDER=ollama
 | `browse_structure` | Condensed structural map: classes, functions, methods with signatures, grouped by file. |
 | `list_symbols` | Compact symbol table with name/kind/file/line. Supports name, kind, and path filters. |
 
-### 📄 File Reading
+### File Reading
 
 | Tool | Description |
 |---|---|
 | `read_file` | Read file without line-number overhead. Cheaper than built-in Read for code files. |
 
-### 📚 Documentation Cache
+### Documentation Cache
 
 | Tool | Description |
 |---|---|
 | `index_document` | Cache external documentation for semantic search. Supports TTL for staleness tracking. |
 | `search_documents` | Search cached docs. Far cheaper than re-fetching the same page. |
 
-### 🧠 Memory
+### Memory
 
 | Tool | Description |
 |---|---|
@@ -266,7 +323,7 @@ export MEMORY_LLM_PROVIDER=ollama
 
 ---
 
-## 🌐 Supported Languages
+## Supported Languages
 
 **AST-aware** (functions and classes chunked intact):
 
@@ -298,7 +355,7 @@ export MEMORY_LLM_PROVIDER=ollama
 
 ---
 
-## 🛠️ Development
+## Development
 
 ```bash
 npm install && npx tsc    # install and build
@@ -313,12 +370,12 @@ Scopes: `embedding`, `vectordb`, `splitter`, `indexer`, `mcp`, `infra`, `config`
 
 ---
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
 Heavily inspired by [mem0](https://github.com/mem0ai/mem0), [claude-mem](https://github.com/thedotmack/claude-mem), and [claude-context](https://github.com/zilliztech/claude-context). Documentation retrieval powered by [context7](https://github.com/upstash/context7).
 
 ---
 
-## 📄 License
+## License
 
 MIT

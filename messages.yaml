@@ -1,5 +1,19 @@
 # Eidetic user-facing messages — edit here, everything else reads from this file.
 
+welcome:
+  ascii_art: |
+    ┌─────────────────────────────────────────────┐
+    │  ╔═╗╦╔╦╗╔═╗╔╦╗╦╔═╗                         │
+    │  ║╣ ║ ║║║╣  ║ ║║    semantic code search    │
+    │  ╚═╝╩═╩╝╚═╝ ╩ ╩╚═╝  for Claude Code        │
+    └─────────────────────────────────────────────┘
+  first_run: |
+    Eidetic is ready! Quick start:
+    1. `/index` — index this codebase
+    2. `search_code("how does X work")` — search by meaning
+    3. That's it. Everything else is optional.
+  qdrant_provisioned: "Qdrant was auto-provisioned via Docker (container: eidetic-qdrant)."
+
 setup:
   missing:
     header: "Eidetic setup required: No API key configured."
@@ -19,6 +33,21 @@ setup:
     diagnosis: ""
     step1: "**Get an API key**: https://platform.openai.com/api-keys"
 
+  # Shown on Windows
+  config_instructions_windows: |
+    ### Set your API key
+    ```
+      setx OPENAI_API_KEY sk-your-key-here
+    ```
+
+  # Shown on macOS / Linux
+  config_instructions_unix: |
+    ### Set your API key
+    Add to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
+    ```
+      export OPENAI_API_KEY="sk-your-key-here"
+    ```
+
   # Shared across all contexts
   config_instructions: |
     ### Windows
@@ -32,19 +61,10 @@ setup:
       export OPENAI_API_KEY="sk-your-key-here"
     ```
 
-    ### Manual
+  config_alternatives: |
+    ### Alternative methods
 
-    Edit `~/.claude/plugins/claude-eidetic/config.json`:
-    ```json
-    {
-      "env": {
-        "OPENAI_API_KEY": "sk-your-key-here"
-      }
-    }
-    ```
-
-    ### Using Ollama instead (free, local)
-
-    Set `EMBEDDING_PROVIDER=ollama` in the same env block (requires Ollama running locally with `nomic-embed-text`).
+    #### Using Ollama instead (free, local)
+    Set `EMBEDDING_PROVIDER=ollama` in your shell profile (requires Ollama running locally with `nomic-embed-text`).
 
   footer: "**Restart Claude Code** for changes to take effect."
