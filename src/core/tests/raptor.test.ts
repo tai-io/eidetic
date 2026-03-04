@@ -156,9 +156,14 @@ describe('runRaptor', () => {
     );
     await vectordb.insert('code', docs);
 
-    const slowSummarize: LlmSummarizer = vi
-      .fn()
-      .mockImplementation(() => new Promise((r) => setTimeout(() => r('summary'), 100)));
+    const slowSummarize: LlmSummarizer = vi.fn().mockImplementation(
+      () =>
+        new Promise<string>((r) =>
+          setTimeout(() => {
+            r('summary');
+          }, 100),
+        ),
+    );
 
     const result = await runRaptor('timeout', 'code', mockEmbedding, vectordb, {
       timeoutMs: 50,

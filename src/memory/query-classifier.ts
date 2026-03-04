@@ -34,7 +34,7 @@ export function getWeightProfile(profile: QueryProfile): WeightProfile {
 }
 
 export function applyKindWeighting(score: number, kind: string, profile: WeightProfile): number {
-  const weight = profile[kind as MemoryKind] ?? 1.0;
+  const weight = kind in profile ? profile[kind as MemoryKind] : 1.0;
   return score * weight;
 }
 
@@ -55,6 +55,6 @@ export function applyRecencyDecay(score: number, kind: string, validAt: string):
   const daysSince = (Date.now() - validDate) / 86400000;
   if (daysSince <= 0) return score;
 
-  const rate = DECAY_RATES[kind as MemoryKind] ?? 0.01;
+  const rate = kind in DECAY_RATES ? DECAY_RATES[kind as MemoryKind] : 0.01;
   return score * (1 / (1 + daysSince * rate));
 }

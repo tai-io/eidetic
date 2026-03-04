@@ -1,5 +1,10 @@
 import type { Embedding } from '../embedding/types.js';
 import type { VectorDB } from '../vectordb/types.js';
+import type { MemoryPayload } from './types.js';
+
+function asPayload(raw: Record<string, unknown>): MemoryPayload {
+  return raw as MemoryPayload;
+}
 
 const OLD_COLLECTION = 'eidetic_memory';
 const BATCH_SIZE = 100;
@@ -47,8 +52,9 @@ export async function migrateMemories(
         continue;
       }
 
-      const project = String(point.payload.project ?? 'global');
-      const originalCategory = String(point.payload.category ?? point.payload.fileExtension ?? '');
+      const p = asPayload(point.payload);
+      const project = p.project ?? 'global';
+      const originalCategory = p.category ?? p.fileExtension ?? '';
       const col = targetCollection(project);
 
       // Ensure target collection exists
@@ -62,23 +68,23 @@ export async function migrateMemories(
 
       // Write to new collection with kind=fact and migrated source
       await vectordb.updatePoint(col, id, point.vector, {
-        content: String(point.payload.content ?? point.payload.memory ?? ''),
+        content: p.content ?? p.memory ?? '',
         relativePath: id,
         fileExtension: 'fact',
         language: `migrated:${originalCategory}`,
         startLine: 0,
         endLine: 0,
-        hash: String(point.payload.hash ?? ''),
-        memory: String(point.payload.memory ?? point.payload.content ?? ''),
+        hash: p.hash ?? '',
+        memory: p.memory ?? p.content ?? '',
         kind: 'fact',
         source: `migrated:${originalCategory}`,
         project,
-        access_count: Number(point.payload.access_count ?? 0),
-        last_accessed: String(point.payload.last_accessed ?? ''),
+        access_count: p.access_count ?? 0,
+        last_accessed: p.last_accessed ?? '',
         supersedes: null,
         superseded_by: null,
-        valid_at: String(point.payload.created_at ?? new Date().toISOString()),
-        created_at: String(point.payload.created_at ?? new Date().toISOString()),
+        valid_at: p.created_at ?? new Date().toISOString(),
+        created_at: p.created_at ?? new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
 

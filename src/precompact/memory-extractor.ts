@@ -50,7 +50,9 @@ export async function extractMemoriesFromTranscript(
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), EXTRACTION_TIMEOUT_MS);
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, EXTRACTION_TIMEOUT_MS);
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',

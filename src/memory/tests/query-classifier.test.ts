@@ -4,7 +4,6 @@ import {
   getWeightProfile,
   applyKindWeighting,
   applyRecencyDecay,
-  type WeightProfile,
 } from '../query-classifier.js';
 
 describe('classifyQuery', () => {

@@ -134,10 +134,9 @@ export function diffSnapshots(previous: FileSnapshot, current: FileSnapshot): Sy
   const removed: string[] = [];
 
   for (const [rel, cur] of Object.entries(current)) {
-    const prev = previous[rel];
-    if (!prev) {
+    if (!Object.hasOwn(previous, rel)) {
       added.push(rel);
-    } else if (prev.contentHash !== cur.contentHash) {
+    } else if (previous[rel].contentHash !== cur.contentHash) {
       modified.push(rel);
     }
   }

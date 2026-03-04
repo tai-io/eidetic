@@ -10,12 +10,7 @@ import { indexDocument } from './core/doc-indexer.js';
 import { searchDocuments } from './core/doc-searcher.js';
 import { generateRepoMap, listSymbolsTable, VectorDBSymbolSource } from './core/repo-map.js';
 import { StateManager } from './state/snapshot.js';
-import {
-  registerProject,
-  resolveProject,
-  listProjects,
-  findProjectByPath,
-} from './state/registry.js';
+import { registerProject, resolveProject, listProjects } from './state/registry.js';
 import type { Embedding } from './embedding/types.js';
 import type { VectorDB } from './vectordb/types.js';
 import {

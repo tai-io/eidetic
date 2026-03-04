@@ -44,7 +44,7 @@ export async function runRaptor(
   const mapped: Point[] = points.map((p) => ({
     id: p.id,
     vector: p.vector,
-    content: String(p.payload.content ?? ''),
+    content: typeof p.payload.content === 'string' ? p.payload.content : '',
   }));
 
   // Cluster
@@ -62,13 +62,11 @@ export async function runRaptor(
   let cached = 0;
   let timedOut = false;
 
-  for (let i = 0; i < clusters.length; i++) {
+  for (const cluster of clusters) {
     if (Date.now() >= deadline) {
       timedOut = true;
       break;
     }
-
-    const cluster = clusters[i];
     if (cluster.length === 0) continue;
 
     // Compute cluster hash from sorted member IDs

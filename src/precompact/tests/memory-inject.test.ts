@@ -45,10 +45,9 @@ describe('formatMemoryContext', () => {
     expect(output).toContain('- [convention] Second fact');
   });
 
-  it('omits kind prefix when kind is empty', () => {
-    const output = formatMemoryContext([makeMemory({ kind: '' as any })]);
-    expect(output).not.toContain('[]');
-    expect(output).toContain('- Docker build fails');
+  it('always includes kind prefix for typed MemoryKind values', () => {
+    const output = formatMemoryContext([makeMemory({ kind: 'fact' })]);
+    expect(output).toContain('- [fact] Docker build fails');
   });
 
   it('includes footer with search_memory and add_memory hints', () => {

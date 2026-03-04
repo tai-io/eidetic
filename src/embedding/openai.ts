@@ -92,7 +92,9 @@ export class OpenAIEmbedding implements Embedding {
       }
     }
 
-    const results: (EmbeddingVector | null)[] = new Array(texts.length).fill(null);
+    const results: (EmbeddingVector | null)[] = Array.from<EmbeddingVector | null>({
+      length: texts.length,
+    }).fill(null);
 
     // Fill empty-text slots with zero vectors immediately
     for (const i of emptyIndices) {

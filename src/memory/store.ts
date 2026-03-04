@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { Embedding } from '../embedding/types.js';
 import type { VectorDB } from '../vectordb/types.js';
-import type { MemoryItem, MemoryAction, ExtractedFact, MemoryKind } from './types.js';
+import type {
+  MemoryItem,
+  MemoryAction,
+  ExtractedFact,
+  MemoryKind,
+  MemoryPayload,
+} from './types.js';
 import { MemoryHistory } from './history.js';
 import { hashMemory, reconcile, type ExistingMatch } from './reconciler.js';
 import {
@@ -227,7 +233,8 @@ export class MemoryStore {
       const existing = await this.vectordb.getById(col, id);
       if (!existing) continue;
 
-      const memory = String(existing.payload.memory ?? existing.payload.content ?? '');
+      const ep = asPayload(existing.payload);
+      const memory = ep.memory ?? ep.content ?? '';
       await this.vectordb.deleteByPath(col, id);
       this.history.log(id, 'DELETE', null, memory);
       return true;
@@ -285,10 +292,10 @@ export class MemoryStore {
       candidates.push({
         id,
         memory: result.content,
-        hash: String(point.payload.hash ?? ''),
+        hash: asPayload(point.payload).hash ?? '',
         vector: point.vector,
         score: result.score,
-        kind: String(point.payload.kind ?? ''),
+        kind: asPayload(point.payload).kind ?? '',
       });
     }
 
@@ -350,9 +357,10 @@ export class MemoryStore {
 
     if (decision.action === 'UPDATE' && decision.existingId) {
       const existingPoint = await this.vectordb.getById(col, decision.existingId);
-      const createdAt = String(existingPoint?.payload.created_at ?? now);
-      const existingAccessCount = Number(existingPoint?.payload.access_count ?? 0);
-      const existingLastAccessed = String(existingPoint?.payload.last_accessed ?? '');
+      const ep = existingPoint ? asPayload(existingPoint.payload) : null;
+      const createdAt = ep?.created_at ?? now;
+      const existingAccessCount = ep?.access_count ?? 0;
+      const existingLastAccessed = ep?.last_accessed ?? '';
 
       await this.vectordb.updatePoint(col, decision.existingId, vector, {
         content: fact.fact,
@@ -368,8 +376,8 @@ export class MemoryStore {
         project,
         access_count: existingAccessCount,
         last_accessed: existingLastAccessed,
-        supersedes: existingPoint?.payload.supersedes ?? null,
-        superseded_by: existingPoint?.payload.superseded_by ?? null,
+        supersedes: ep?.supersedes ?? null,
+        superseded_by: ep?.superseded_by ?? null,
         valid_at: validAt,
         created_at: createdAt,
         updated_at: now,
@@ -431,20 +439,25 @@ export class MemoryStore {
   }
 }
 
-function payloadToMemoryItem(id: string, payload: Record<string, unknown>): MemoryItem {
+function asPayload(raw: Record<string, unknown>): MemoryPayload {
+  return raw as MemoryPayload;
+}
+
+function payloadToMemoryItem(id: string, raw: Record<string, unknown>): MemoryItem {
+  const p = asPayload(raw);
   return {
     id,
-    memory: String(payload.memory ?? payload.content ?? ''),
-    hash: String(payload.hash ?? ''),
-    kind: (payload.kind ?? payload.fileExtension ?? 'fact') as MemoryKind,
-    source: String(payload.source ?? payload.language ?? ''),
-    project: String(payload.project ?? 'global'),
-    access_count: Number(payload.access_count ?? 0),
-    last_accessed: String(payload.last_accessed ?? ''),
-    supersedes: (payload.supersedes as string) ?? null,
-    superseded_by: (payload.superseded_by as string) ?? null,
-    valid_at: String(payload.valid_at ?? ''),
-    created_at: String(payload.created_at ?? ''),
-    updated_at: String(payload.updated_at ?? ''),
+    memory: p.memory ?? p.content ?? '',
+    hash: p.hash ?? '',
+    kind: (p.kind ?? p.fileExtension ?? 'fact') as MemoryKind,
+    source: p.source ?? p.language ?? '',
+    project: p.project ?? 'global',
+    access_count: p.access_count ?? 0,
+    last_accessed: p.last_accessed ?? '',
+    supersedes: p.supersedes ?? null,
+    superseded_by: p.superseded_by ?? null,
+    valid_at: p.valid_at ?? '',
+    created_at: p.created_at ?? '',
+    updated_at: p.updated_at ?? '',
   };
 }

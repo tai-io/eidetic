@@ -235,7 +235,7 @@ export function formatMemoryList(items: MemoryItem[]): string {
 
   const grouped = new Map<string, MemoryItem[]>();
   for (const m of items) {
-    const k = m.kind || 'uncategorized';
+    const k = m.kind;
     let kindList = grouped.get(k);
     if (!kindList) {
       kindList = [];

@@ -13,7 +13,7 @@ import type { MemoryItem } from '../memory/types.js';
 async function main(): Promise<void> {
   try {
     // Get cwd from environment (set by Claude Code) or detect from git
-    const cwd = process.env.CLAUDE_CWD || process.cwd();
+    const cwd = process.env.CLAUDE_CWD ?? process.cwd();
 
     // Detect project root from git
     const projectPath = detectProjectRoot(cwd);
@@ -94,7 +94,7 @@ export function formatMemoryContext(memories: MemoryItem[]): string {
   lines.push('## Remembered Knowledge');
 
   for (const m of memories) {
-    const kindLabel = m.kind ? `[${m.kind}] ` : '';
+    const kindLabel = `[${m.kind}] `;
     lines.push(`- ${kindLabel}${m.memory}`);
   }
 

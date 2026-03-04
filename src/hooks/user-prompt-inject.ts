@@ -7,7 +7,6 @@
  */
 
 import { execSync } from 'node:child_process';
-import path from 'node:path';
 
 const TIMEOUT_MS = 3000;
 const SEARCH_LIMIT = 5;
@@ -27,7 +26,11 @@ async function main(): Promise<void> {
 }
 
 async function timeout(ms: number): Promise<Record<string, unknown>> {
-  return new Promise((resolve) => setTimeout(() => resolve({ hookSpecificOutput: {} }), ms));
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({ hookSpecificOutput: {} });
+    }, ms);
+  });
 }
 
 async function doWork(): Promise<Record<string, unknown>> {

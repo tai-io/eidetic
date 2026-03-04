@@ -107,10 +107,10 @@ function extractFacts(
   const facts: ExtractedFact[] = [];
 
   if (toolName === 'WebFetch') {
-    const url = String(toolInput.url ?? '');
+    const url = typeof toolInput.url === 'string' ? toolInput.url : '';
     facts.push(...extractWebFetchFacts(url, responseStr));
   } else if (toolName === 'Bash') {
-    const command = String(toolInput.command ?? '');
+    const command = typeof toolInput.command === 'string' ? toolInput.command : '';
     facts.push(...extractBashFacts(command, responseStr));
   }
 
@@ -203,7 +203,7 @@ function extractBashFacts(command: string, responseStr: string): ExtractedFact[]
   }
 
   // Detect config commands (git config, npm config, etc.)
-  if (/\bconfig\b/.test(command) && !isError) {
+  if (/\bconfig\b/.test(command)) {
     const shortCmd = command.slice(0, 120).replace(/\n/g, ' ').trim();
     facts.push({
       fact: `Configured: ${shortCmd}`,
@@ -233,7 +233,8 @@ function stringifyResponse(response: unknown): string {
   try {
     return JSON.stringify(response);
   } catch {
-    return String(response);
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    return String(response); // Last resort after JSON.stringify fails
   }
 }
 

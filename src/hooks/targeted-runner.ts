@@ -27,7 +27,7 @@ async function main(): Promise<void> {
 
   let manifest: { projectPath: string; modifiedFiles: string[] };
   try {
-    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as typeof manifest;
   } catch (err) {
     process.stderr.write(`[targeted-runner] Failed to read manifest: ${String(err)}\n`);
     process.exit(1);

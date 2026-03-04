@@ -33,7 +33,7 @@ export async function replicateToGlobalConcepts(
     const id = randomUUID();
     await vectordb.updatePoint(globalCol, id, point.vector, {
       ...point.payload,
-      content: String(point.payload.content ?? ''),
+      content: typeof point.payload.content === 'string' ? point.payload.content : '',
       relativePath: id,
       startLine: 0,
       endLine: 0,
