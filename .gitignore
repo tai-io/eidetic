@@ -3,6 +3,7 @@ dist/
 coverage/
 .env
 *.tsbuildinfo
+src/build-info.ts
 .claude/
 docs/summaries/
 docs/plans/

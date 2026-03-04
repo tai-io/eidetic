@@ -25,6 +25,7 @@ import { getSetupErrorMessage } from './setup-message.js';
 import { MemoryStore } from './memory/store.js';
 import { MemoryHistory } from './memory/history.js';
 import { getMemoryDbPath } from './paths.js';
+import { BUILD_VERSION, BUILD_TIMESTAMP } from './build-info.js';
 
 const GETTING_STARTED = `# Eidetic — Getting Started
 
@@ -151,7 +152,7 @@ async function main() {
 
   // eslint-disable-next-line @typescript-eslint/no-deprecated
   const server = new Server(
-    { name: 'claude-eidetic', version: '0.1.0' },
+    { name: 'claude-eidetic', version: BUILD_VERSION },
     { capabilities: { tools: {} } },
   );
 
@@ -226,7 +227,9 @@ async function main() {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.log('Claude Eidetic MCP server started on stdio.');
+  console.log(
+    `Claude Eidetic MCP server v${BUILD_VERSION} (built ${BUILD_TIMESTAMP}) started on stdio.`,
+  );
 }
 
 process.on('SIGINT', () => {

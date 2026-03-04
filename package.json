@@ -1,7 +1,7 @@
 {
   "name": "claude-eidetic",
-  "version": "0.1.5",
-  "description": "Semantic code search MCP server — lean, correct, fast",
+  "version": "0.0.0",
+  "description": "Semantic code search for Claude Code",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -17,6 +17,7 @@
     "messages.yaml"
   ],
   "scripts": {
+    "prebuild": "tsx scripts/generate-build-info.ts",
     "build": "tsc",
     "dev": "tsx --watch src/index.ts",
     "start": "node dist/index.js",

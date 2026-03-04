@@ -30,6 +30,9 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: Generate build-info
+        run: npm run prebuild
+
       - name: Typecheck
         run: npm run typecheck
 

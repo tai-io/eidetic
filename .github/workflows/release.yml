@@ -2,15 +2,6 @@ name: Release
 
 on:
   workflow_dispatch:
-    inputs:
-      bump:
-        description: 'Version bump type'
-        required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
 
 jobs:
   release:
@@ -44,8 +35,8 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Bump version
-        run: npm version ${{ github.event.inputs.bump }} --no-git-tag-version
+      - name: Build (generates CalVer version)
+        run: npm run clean && npm run build
 
       - name: Sync plugin.json and marketplace.json versions
         run: |
@@ -62,9 +53,6 @@ jobs:
           if (plugin) plugin.version = '$VERSION';
           fs.writeFileSync('$MARKETPLACE_JSON', JSON.stringify(m, null, 2) + '\n');
           "
-
-      - name: Build
-        run: npm run clean && npm run build
 
       - name: Publish to npm
         run: npm publish --provenance
