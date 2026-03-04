@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate build info
+        run: npx tsx scripts/generate-build-info.ts
+
       - name: Typecheck
         run: npm run typecheck
 
