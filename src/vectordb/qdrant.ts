@@ -212,6 +212,21 @@ export class QdrantVectorDB implements VectorDB {
     }
   }
 
+  async deleteByFilter(name: string, filter: Record<string, unknown>): Promise<void> {
+    try {
+      const must = Object.entries(filter).map(([key, value]) => ({
+        key,
+        match: { value },
+      }));
+      await this.client.delete(name, {
+        filter: { must },
+        wait: true,
+      });
+    } catch (err) {
+      throw new VectorDBError(`Failed to delete by filter from "${name}"`, err);
+    }
+  }
+
   async listSymbols(name: string): Promise<SymbolEntry[]> {
     try {
       const results: SymbolEntry[] = [];

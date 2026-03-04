@@ -122,7 +122,7 @@ export function buildSnapshot(rootPath: string, relativePaths: string[]): FileSn
       const contentHash = hashFileContent(fullPath);
       snapshot[rel] = { contentHash };
     } catch (err) {
-      console.warn(`Skipping "${rel}":`, err);
+      process.stderr.write(`Skipping "${rel}": ${String(err)}\n`);
     }
   }
   return snapshot;

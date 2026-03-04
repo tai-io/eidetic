@@ -136,6 +136,16 @@ export class MockVectorDB implements VectorDB {
     col.documents = col.documents.filter((d) => d.relativePath !== relativePath);
   }
 
+  async deleteByFilter(name: string, filter: Record<string, unknown>): Promise<void> {
+    this.calls.push({ method: 'deleteByFilter', args: [name, filter] });
+    const col = this.collections.get(name);
+    if (!col) return;
+    col.documents = col.documents.filter((d) => {
+      const payload = d as unknown as Record<string, unknown>;
+      return !Object.entries(filter).every(([key, value]) => payload[key] === value);
+    });
+  }
+
   async listSymbols(name: string): Promise<SymbolEntry[]> {
     this.calls.push({ method: 'listSymbols', args: [name] });
     const col = this.collections.get(name);

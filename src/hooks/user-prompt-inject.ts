@@ -49,7 +49,10 @@ async function doWork(): Promise<Record<string, unknown>> {
   }
 
   try {
-    const cwd = input.cwd ?? process.cwd();
+    const cwd = input.cwd;
+    if (!cwd) {
+      return { hookSpecificOutput: {} };
+    }
     const projectPath = detectProjectRoot(cwd);
     if (!projectPath) {
       return { hookSpecificOutput: {} };

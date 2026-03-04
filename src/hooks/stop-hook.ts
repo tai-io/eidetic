@@ -81,6 +81,15 @@ async function main(): Promise<void> {
       return;
     }
 
+    if (!fs.existsSync(baseCommitFile)) {
+      // Missing base commit file — clean up and bail
+      try {
+        fs.rmSync(shadowDir, { recursive: true, force: true });
+      } catch {}
+      outputSuccess();
+      return;
+    }
+
     const baseCommit = fs.readFileSync(baseCommitFile, 'utf-8').trim();
 
     // Write tree from shadow index

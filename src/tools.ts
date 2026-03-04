@@ -45,8 +45,8 @@ function resolvePath(args: Record<string, unknown>): string | undefined {
   const projectArg = args.project as string | undefined;
   if (projectArg) return resolveProject(projectArg);
 
-  // Fallback: match cwd against registered projects
-  return findProjectByPath(process.cwd());
+  // No fallback to process.cwd() — meaningless for MCP server
+  return undefined;
 }
 
 function noPathError(): { content: { type: string; text: string }[] } {

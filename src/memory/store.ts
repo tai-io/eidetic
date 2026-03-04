@@ -21,6 +21,7 @@ function collectionName(project: string): string {
 
 export class MemoryStore {
   private initializedCollections = new Set<string>();
+  private initPromises = new Map<string, Promise<string>>();
 
   constructor(
     private embedding: Embedding,
@@ -31,12 +32,22 @@ export class MemoryStore {
   private async ensureCollection(project: string): Promise<string> {
     const name = collectionName(project);
     if (this.initializedCollections.has(name)) return name;
-    const exists = await this.vectordb.hasCollection(name);
-    if (!exists) {
-      await this.vectordb.createCollection(name, this.embedding.dimension);
-    }
-    this.initializedCollections.add(name);
-    return name;
+
+    const existing = this.initPromises.get(name);
+    if (existing) return existing;
+
+    const promise = (async () => {
+      const exists = await this.vectordb.hasCollection(name);
+      if (!exists) {
+        await this.vectordb.createCollection(name, this.embedding.dimension);
+      }
+      this.initializedCollections.add(name);
+      this.initPromises.delete(name);
+      return name;
+    })();
+
+    this.initPromises.set(name, promise);
+    return promise;
   }
 
   async addMemory(

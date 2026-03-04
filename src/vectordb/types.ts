@@ -50,6 +50,7 @@ export interface VectorDB {
   insert(name: string, documents: CodeDocument[]): Promise<void>;
   search(name: string, params: HybridSearchParams): Promise<SearchResult[]>;
   deleteByPath(name: string, relativePath: string): Promise<void>;
+  deleteByFilter(name: string, filter: Record<string, unknown>): Promise<void>;
   getById(
     name: string,
     id: string,

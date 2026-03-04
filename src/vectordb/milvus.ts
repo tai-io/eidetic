@@ -406,6 +406,24 @@ export class MilvusVectorDB implements VectorDB {
     }
   }
 
+  async deleteByFilter(name: string, filter: Record<string, unknown>): Promise<void> {
+    await this.ready();
+    await this.ensureLoaded(name);
+
+    try {
+      const clauses = Object.entries(filter).map(([key, value]) => {
+        const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        return `${key} == "${escaped}"`;
+      });
+      await this.client.delete({
+        collection_name: name,
+        filter: clauses.join(' && '),
+      });
+    } catch (err) {
+      throw new VectorDBError(`Failed to delete by filter from "${name}"`, err);
+    }
+  }
+
   async listSymbols(name: string): Promise<SymbolEntry[]> {
     await this.ready();
     await this.ensureLoaded(name);

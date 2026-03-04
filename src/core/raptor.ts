@@ -89,6 +89,9 @@ export async function runRaptor(
       summariesGenerated++;
     }
 
+    // Skip empty summaries to avoid embedding API errors
+    if (!summary.trim()) continue;
+
     // Embed summary and store in knowledge collection
     const vector = await embedding.embed(summary);
     const pointId = randomUUID();

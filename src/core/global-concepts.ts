@@ -25,13 +25,7 @@ export async function replicateToGlobalConcepts(
   if (points.length === 0) return 0;
 
   // Clean up stale entries for this project
-  // Delete existing entries from this project by scrolling and filtering
-  const existingPoints = await vectordb.scrollAll(globalCol);
-  for (const p of existingPoints) {
-    if (String(p.payload.project) === project) {
-      await vectordb.deleteByPath(globalCol, String(p.payload.relativePath ?? p.id));
-    }
-  }
+  await vectordb.deleteByFilter(globalCol, { project });
 
   // Upsert knowledge points into global collection
   let replicated = 0;
