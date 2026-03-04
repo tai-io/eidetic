@@ -11,5 +11,8 @@
     "semantic-search",
     "mcp",
     "eidetic"
-  ]
+  ],
+  "skills": "../skills/",
+  "mcpServers": "../.mcp.json",
+  "hooks": "../hooks/hooks.json"
 }
