@@ -92,7 +92,9 @@ export class OpenAIEmbedding implements Embedding {
       }
     }
 
-    const results: (EmbeddingVector | null)[] = new Array(texts.length).fill(null);
+    const results: (EmbeddingVector | null)[] = Array.from<EmbeddingVector | null>({
+      length: texts.length,
+    }).fill(null);
 
     // Fill empty-text slots with zero vectors immediately
     for (const i of emptyIndices) {
@@ -184,14 +186,16 @@ export class OpenAIEmbedding implements Embedding {
 
   private async callWithRetry(texts: string[]): Promise<EmbeddingVector[]> {
     let currentBatchSize = texts.length;
+    const allResults: EmbeddingVector[] = [];
+    let startOffset = 0;
 
     for (let attempt = 0; attempt < RETRY_DELAYS.length + 1; attempt++) {
       try {
-        const allResults: EmbeddingVector[] = [];
-        for (let offset = 0; offset < texts.length; offset += currentBatchSize) {
+        for (let offset = startOffset; offset < texts.length; offset += currentBatchSize) {
           const batch = texts.slice(offset, offset + currentBatchSize);
           const result = await this.callApi(batch);
           allResults.push(...result);
+          startOffset = offset + currentBatchSize;
         }
         return allResults;
       } catch (err) {

@@ -20,6 +20,9 @@ function makeConfig(overrides: Partial<Config> = {}): Config {
     eideticDataDir: '/tmp/eidetic-test',
     customExtensions: [],
     customIgnorePatterns: [],
+    raptorEnabled: true,
+    raptorTimeoutMs: 60000,
+    raptorLlmModel: 'gpt-4o-mini',
     ...overrides,
   };
 }

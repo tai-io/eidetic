@@ -190,7 +190,7 @@ export function formatMemoryActions(actions: MemoryAction[]): string {
     lines.push(`  ${icon} [${action.event}] ${action.memory}`);
     const projectTag =
       action.project && action.project !== 'global' ? ` | Project: ${action.project}` : '';
-    lines.push(`    Category: ${action.category ?? 'unknown'} | ID: ${action.id}${projectTag}`);
+    lines.push(`    Kind: ${action.kind ?? 'unknown'} | ID: ${action.id}${projectTag}`);
     if (action.previous) {
       lines.push(`    Previous: ${action.previous}`);
     }
@@ -210,7 +210,7 @@ export function formatMemorySearchResults(items: MemoryItem[], query: string): s
     const m = items[i];
     lines.push(`${i + 1}. ${m.memory}`);
     const projectTag = m.project && m.project !== 'global' ? ` | Project: ${m.project}` : '';
-    lines.push(`   Category: ${m.category} | ID: ${m.id}${projectTag}`);
+    lines.push(`   Kind: ${m.kind} | ID: ${m.id}${projectTag}`);
     if (m.source) lines.push(`   Source: ${m.source}`);
     if (m.access_count > 0) {
       lines.push(`   Accessed: ${m.access_count}x | Last: ${m.last_accessed.slice(0, 10)}`);
@@ -235,17 +235,17 @@ export function formatMemoryList(items: MemoryItem[]): string {
 
   const grouped = new Map<string, MemoryItem[]>();
   for (const m of items) {
-    const cat = m.category || 'uncategorized';
-    let catList = grouped.get(cat);
-    if (!catList) {
-      catList = [];
-      grouped.set(cat, catList);
+    const k = m.kind;
+    let kindList = grouped.get(k);
+    if (!kindList) {
+      kindList = [];
+      grouped.set(k, kindList);
     }
-    catList.push(m);
+    kindList.push(m);
   }
 
-  for (const [category, memories] of grouped) {
-    lines.push(`### ${category} (${memories.length})`);
+  for (const [kind, memories] of grouped) {
+    lines.push(`### ${kind} (${memories.length})`);
     for (const m of memories) {
       const updatedDate = m.updated_at ? ` (updated: ${m.updated_at.slice(0, 10)})` : '';
       const projectTag = m.project && m.project !== 'global' ? ` [${m.project}]` : '';

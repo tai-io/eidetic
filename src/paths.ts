@@ -53,6 +53,18 @@ export function getMemoryDbPath(): string {
   return `${getDataDir()}/memory-history.db`;
 }
 
+export function getRaptorDbPath(): string {
+  return `${getDataDir()}/raptor.db`;
+}
+
+export function knowledgeCollectionName(project: string): string {
+  return `eidetic_${project}_knowledge`;
+}
+
+export function globalConceptsCollectionName(): string {
+  return 'eidetic_global_concepts';
+}
+
 export function docCollectionName(library: string): string {
   const safe = library
     .toLowerCase()

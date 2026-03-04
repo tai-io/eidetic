@@ -15,3 +15,4 @@ export class IndexingError extends EideticError {}
 export class SearchError extends EideticError {}
 export class BootstrapError extends EideticError {}
 export class MemoryError extends EideticError {}
+export class RaptorError extends EideticError {}

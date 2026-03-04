@@ -10,10 +10,11 @@ import { z } from 'zod';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseTranscript } from './transcript-parser.js';
-import { writeSessionNote } from './note-writer.js';
+import { writeSessionNote, formatSessionNote } from './note-writer.js';
 import { updateSessionIndex, readSessionIndex } from './tier0-writer.js';
 import { spawnBackgroundIndexer } from './session-indexer.js';
 import { getNotesDir, getProjectId } from './utils.js';
+import { extractMemoriesFromTranscript } from './memory-extractor.js';
 
 // Resolve index-runner path at module boundary (follows project convention)
 const __filename = fileURLToPath(import.meta.url);
@@ -105,15 +106,64 @@ async function main(): Promise<void> {
         tasksCreated: session.tasksCreated.length,
       });
     }
+    // Extract and store memories from session note (non-fatal, fire-and-forget)
+    if (!skippedNote) {
+      void extractAndStoreMemories(session, projectId);
+    }
   } catch (err) {
     outputError(err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function extractAndStoreMemories(
+  session: import('./types.js').ExtractedSession,
+  projectName: string,
+): Promise<void> {
+  try {
+    const { loadConfig } = await import('../config.js');
+    const config = loadConfig();
+    if (!config.raptorEnabled) return;
+
+    const sessionNoteText = formatSessionNote(session);
+    const memories = await extractMemoriesFromTranscript(sessionNoteText, config.openaiApiKey);
+    if (memories.length === 0) return;
+
+    const [{ createEmbedding }, { MemoryHistory }, { MemoryStore }, { getMemoryDbPath }] =
+      await Promise.all([
+        import('../embedding/factory.js'),
+        import('../memory/history.js'),
+        import('../memory/store.js'),
+        import('../paths.js'),
+      ]);
+
+    const embedding = createEmbedding(config);
+    await embedding.initialize();
+
+    let vectordb;
+    if (config.vectordbProvider === 'milvus') {
+      const { MilvusVectorDB } = await import('../vectordb/milvus.js');
+      vectordb = new MilvusVectorDB();
+    } else {
+      const { QdrantVectorDB } = await import('../vectordb/qdrant.js');
+      vectordb = new QdrantVectorDB(config.qdrantUrl, config.qdrantApiKey);
+    }
+
+    const history = new MemoryHistory(getMemoryDbPath());
+    const store = new MemoryStore(embedding, vectordb, history);
+
+    const facts = memories.map((m) => ({ fact: m.content, kind: m.kind, valid_at: m.valid_at }));
+    await store.addMemory(facts, 'session-extract', projectName);
+
+    process.stderr.write(`[eidetic] Extracted ${memories.length} memories from session\n`);
+  } catch (err) {
+    process.stderr.write(`[eidetic] Memory extraction failed (non-fatal): ${String(err)}\n`);
   }
 }
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) {
-    chunks.push(chunk);
+    chunks.push(chunk as Buffer);
   }
   return Buffer.concat(chunks).toString('utf-8');
 }

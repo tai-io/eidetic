@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { ReconcileResult } from './types.js';
 
 const SIMILARITY_THRESHOLD = 0.92;
+const SUPERSESSION_LOWER = 0.7;
 
 export function hashMemory(text: string): string {
   return createHash('md5').update(text.trim().toLowerCase()).digest('hex');
@@ -27,12 +28,14 @@ export interface ExistingMatch {
   hash: string;
   vector: number[];
   score: number;
+  kind?: string;
 }
 
 export function reconcile(
   newHash: string,
   newVector: number[],
   candidates: ExistingMatch[],
+  newKind?: string,
 ): ReconcileResult {
   // Check for exact hash match first
   for (const candidate of candidates) {
@@ -41,11 +44,15 @@ export function reconcile(
     }
   }
 
-  // Check cosine similarity for semantic near-duplicates
+  // Check cosine similarity for semantic near-duplicates and supersession
   for (const candidate of candidates) {
     const sim = cosineSimilarity(newVector, candidate.vector);
     if (sim >= SIMILARITY_THRESHOLD) {
       return { action: 'UPDATE', existingId: candidate.id, existingMemory: candidate.memory };
+    }
+    // Supersession: 0.7-0.92 range, same kind
+    if (sim >= SUPERSESSION_LOWER && newKind && candidate.kind && newKind === candidate.kind) {
+      return { action: 'SUPERSEDE', existingId: candidate.id, existingMemory: candidate.memory };
     }
   }
 

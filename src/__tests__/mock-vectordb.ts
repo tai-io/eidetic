@@ -136,6 +136,16 @@ export class MockVectorDB implements VectorDB {
     col.documents = col.documents.filter((d) => d.relativePath !== relativePath);
   }
 
+  async deleteByFilter(name: string, filter: Record<string, unknown>): Promise<void> {
+    this.calls.push({ method: 'deleteByFilter', args: [name, filter] });
+    const col = this.collections.get(name);
+    if (!col) return;
+    col.documents = col.documents.filter((d) => {
+      const payload = d as unknown as Record<string, unknown>;
+      return !Object.entries(filter).every(([key, value]) => payload[key] === value);
+    });
+  }
+
   async listSymbols(name: string): Promise<SymbolEntry[]> {
     this.calls.push({ method: 'listSymbols', args: [name] });
     const col = this.collections.get(name);
@@ -151,6 +161,27 @@ export class MockVectorDB implements VectorDB {
         ...(d.symbolSignature ? { signature: d.symbolSignature } : {}),
         ...(d.parentSymbol ? { parentName: d.parentSymbol } : {}),
       }));
+  }
+
+  async scrollAll(
+    name: string,
+  ): Promise<{ id: string | number; vector: number[]; payload: Record<string, unknown> }[]> {
+    this.calls.push({ method: 'scrollAll', args: [name] });
+    const col = this.collections.get(name);
+    if (!col) return [];
+    return col.documents.map((doc) => ({
+      id: doc.id,
+      vector: doc.vector,
+      payload: {
+        content: doc.content,
+        relativePath: doc.relativePath,
+        startLine: doc.startLine,
+        endLine: doc.endLine,
+        fileExtension: doc.fileExtension,
+        language: doc.language,
+        ...(doc as unknown as Record<string, unknown>),
+      },
+    }));
   }
 
   /** Reset all state for test isolation */

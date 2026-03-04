@@ -13,7 +13,7 @@ import type { MemoryItem } from '../memory/types.js';
 async function main(): Promise<void> {
   try {
     // Get cwd from environment (set by Claude Code) or detect from git
-    const cwd = process.env.CLAUDE_CWD || process.cwd();
+    const cwd = process.env.CLAUDE_CWD ?? process.cwd();
 
     // Detect project root from git
     const projectPath = detectProjectRoot(cwd);
@@ -47,9 +47,10 @@ async function main(): Promise<void> {
       vectordb = new QdrantVectorDB(config.qdrantUrl, config.qdrantApiKey);
     }
 
-    // Quick-exit if no memory collection exists
-    const exists = await vectordb.hasCollection('eidetic_memory');
-    if (!exists) {
+    // Quick-exit if no memory collections exist
+    const globalExists = await vectordb.hasCollection('eidetic_global_memory');
+    const projectExists = await vectordb.hasCollection(`eidetic_${projectName}_memory`);
+    if (!globalExists && !projectExists) {
       return;
     }
 
@@ -93,8 +94,8 @@ export function formatMemoryContext(memories: MemoryItem[]): string {
   lines.push('## Remembered Knowledge');
 
   for (const m of memories) {
-    const category = m.category ? `[${m.category}] ` : '';
-    lines.push(`- ${category}${m.memory}`);
+    const kindLabel = `[${m.kind}] `;
+    lines.push(`- ${kindLabel}${m.memory}`);
   }
 
   lines.push('');

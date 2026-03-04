@@ -312,7 +312,7 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'add_memory',
     description:
-      'Store pre-extracted developer knowledge facts. Before calling, extract facts yourself from the relevant content. Each fact should be a concise, self-contained statement about coding style, tools, architecture, conventions, debugging insights, or workflow preferences. Automatically deduplicates against existing memories.',
+      'Store pre-extracted developer knowledge facts. Before calling, extract facts yourself from the relevant content. Each fact should be a concise, self-contained statement classified by kind: fact (verifiable info), decision (rationale), convention (patterns), constraint (hard limits), or intent (planned). Automatically deduplicates against existing memories.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -328,22 +328,19 @@ export const TOOL_DEFINITIONS = [
                 description:
                   'A concise, self-contained statement of a developer preference or convention.',
               },
-              category: {
+              kind: {
                 type: 'string',
                 description:
-                  'Category: coding_style, tools, architecture, conventions, debugging, workflow, or preferences.',
-                enum: [
-                  'coding_style',
-                  'tools',
-                  'architecture',
-                  'conventions',
-                  'debugging',
-                  'workflow',
-                  'preferences',
-                ],
+                  'Memory kind: fact (verifiable info), decision (rationale-bearing), convention (patterns/rules), constraint (hard limits), or intent (planned/future).',
+                enum: ['fact', 'decision', 'convention', 'constraint', 'intent'],
+              },
+              valid_at: {
+                type: 'string',
+                description:
+                  'ISO timestamp for when this fact was true (e.g., when a decision was made). Defaults to now if not provided.',
               },
             },
-            required: ['fact', 'category'],
+            required: ['fact', 'kind'],
           },
         },
         source: {
@@ -377,19 +374,10 @@ export const TOOL_DEFINITIONS = [
           default: 10,
           maximum: 50,
         },
-        category: {
+        kind: {
           type: 'string',
-          description:
-            'Filter by category: coding_style, tools, architecture, conventions, debugging, workflow, preferences.',
-          enum: [
-            'coding_style',
-            'tools',
-            'architecture',
-            'conventions',
-            'debugging',
-            'workflow',
-            'preferences',
-          ],
+          description: 'Filter by kind: fact, decision, convention, constraint, or intent.',
+          enum: ['fact', 'decision', 'convention', 'constraint', 'intent'],
         },
         project: {
           type: 'string',
@@ -402,23 +390,14 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: 'list_memories',
-    description: 'List all stored developer memories, optionally filtered by category or project.',
+    description: 'List all stored developer memories, optionally filtered by kind or project.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        category: {
+        kind: {
           type: 'string',
-          description:
-            'Filter by category: coding_style, tools, architecture, conventions, debugging, workflow, preferences.',
-          enum: [
-            'coding_style',
-            'tools',
-            'architecture',
-            'conventions',
-            'debugging',
-            'workflow',
-            'preferences',
-          ],
+          description: 'Filter by kind: fact, decision, convention, constraint, or intent.',
+          enum: ['fact', 'decision', 'convention', 'constraint', 'intent'],
         },
         limit: {
           type: 'number',

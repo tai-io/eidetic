@@ -406,6 +406,24 @@ export class MilvusVectorDB implements VectorDB {
     }
   }
 
+  async deleteByFilter(name: string, filter: Record<string, unknown>): Promise<void> {
+    await this.ready();
+    await this.ensureLoaded(name);
+
+    try {
+      const clauses = Object.entries(filter).map(([key, value]) => {
+        const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        return `${key} == "${escaped}"`;
+      });
+      await this.client.delete({
+        collection_name: name,
+        filter: clauses.join(' && '),
+      });
+    } catch (err) {
+      throw new VectorDBError(`Failed to delete by filter from "${name}"`, err);
+    }
+  }
+
   async listSymbols(name: string): Promise<SymbolEntry[]> {
     await this.ready();
     await this.ensureLoaded(name);
@@ -440,6 +458,31 @@ export class MilvusVectorDB implements VectorDB {
         );
     } catch (err) {
       throw new VectorDBError(`Failed to list symbols from "${name}"`, err);
+    }
+  }
+
+  async scrollAll(
+    name: string,
+  ): Promise<{ id: string | number; vector: number[]; payload: Record<string, unknown> }[]> {
+    await this.ready();
+    await this.ensureLoaded(name);
+
+    try {
+      const result = await this.client.query({
+        collection_name: name,
+        filter: '',
+        output_fields: ['*'],
+        limit: 16384,
+      });
+
+      const rows: any[] = result.data ?? [];
+      return rows.map((r: any) => ({
+        id: String(r.id ?? ''),
+        vector: r.vector ?? [],
+        payload: r as Record<string, unknown>,
+      }));
+    } catch (err) {
+      throw new VectorDBError(`Failed to scroll all points from Milvus "${name}"`, err);
     }
   }
 

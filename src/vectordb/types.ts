@@ -50,6 +50,7 @@ export interface VectorDB {
   insert(name: string, documents: CodeDocument[]): Promise<void>;
   search(name: string, params: HybridSearchParams): Promise<SearchResult[]>;
   deleteByPath(name: string, relativePath: string): Promise<void>;
+  deleteByFilter(name: string, filter: Record<string, unknown>): Promise<void>;
   getById(
     name: string,
     id: string,
@@ -61,4 +62,7 @@ export interface VectorDB {
     payload: Record<string, unknown>,
   ): Promise<void>;
   listSymbols(name: string): Promise<SymbolEntry[]>;
+  scrollAll(
+    name: string,
+  ): Promise<{ id: string | number; vector: number[]; payload: Record<string, unknown> }[]>;
 }

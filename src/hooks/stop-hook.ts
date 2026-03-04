@@ -28,7 +28,7 @@ const StopInputSchema = z.object({
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) {
-    chunks.push(chunk);
+    chunks.push(chunk as Buffer);
   }
   return Buffer.concat(chunks).toString('utf-8');
 }
@@ -77,6 +77,17 @@ async function main(): Promise<void> {
 
     // No shadow index means no edits happened this session
     if (!fs.existsSync(shadowIndex)) {
+      outputSuccess();
+      return;
+    }
+
+    if (!fs.existsSync(baseCommitFile)) {
+      // Missing base commit file — clean up and bail
+      try {
+        fs.rmSync(shadowDir, { recursive: true, force: true });
+      } catch {
+        // Cleanup is best-effort
+      }
       outputSuccess();
       return;
     }
