@@ -1,6 +1,6 @@
 {
   "name": "claude-eidetic",
-  "version": "2026.306.1756",
+  "version": "2026.306.1811",
   "description": "Semantic code search for Claude Code",
   "type": "module",
   "main": "dist/index.js",
