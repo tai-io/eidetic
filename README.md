@@ -17,7 +17,8 @@ Semantic code search, persistent memory, and session continuity for Claude Code.
 ## Quick Start
 
 ```bash
-claude plugin install eidetics/claude-eidetic
+claude plugin marketplace add eidetics/claude-eidetic
+claude plugin install claude-eidetic
 ```
 
 ```bash
@@ -145,7 +146,8 @@ Every new Claude Code session starts cold. You re-explain the architecture. You 
 ### Plugin (recommended)
 
 ```bash
-claude plugin install eidetics/claude-eidetic
+claude plugin marketplace add eidetics/claude-eidetic
+claude plugin install claude-eidetic
 ```
 
 The plugin auto-starts the MCP server, installs skills, and configures hooks.

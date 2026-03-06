@@ -62,20 +62,11 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Open release PR
+      - name: Commit version updates to main
         run: |
           VERSION="$(node -p "require('./package.json').version")"
-          BRANCH="chore/release-v$VERSION"
           PLUGIN_JSON="plugin/plugins/claude-eidetic/.claude-plugin/plugin.json"
           MARKETPLACE_JSON=".claude-plugin/marketplace.json"
-          git checkout -b "$BRANCH"
           git add package.json package-lock.json "$PLUGIN_JSON" "$MARKETPLACE_JSON"
           git commit -m "chore(release): v$VERSION"
-          git push origin "$BRANCH"
-          gh pr create \
-            --title "chore(release): v$VERSION" \
-            --body "Automated release PR for v$VERSION. Merge to publish the git tag and GitHub Release." \
-            --base main \
-            --head "$BRANCH"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git push origin main
