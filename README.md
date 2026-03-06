@@ -191,7 +191,7 @@ npm install && npx tsc && npm start
 
 - Node.js >= 20.0.0
 - An API key (OpenAI for embeddings, or Ollama for free local embeddings)
-- Docker (optional): Qdrant auto-provisions via Docker if not already running
+- Docker (optional): only needed if using Qdrant provider (`VECTORDB_PROVIDER=qdrant`)
 - C/C++ build tools: required by tree-sitter native bindings (`node-gyp`)
 
 ---
@@ -220,8 +220,9 @@ export MEMORY_LLM_PROVIDER=ollama
 | `INDEXING_CONCURRENCY` | `8` | Parallel file indexing workers (1-32) |
 | `OPENAI_BASE_URL` | _(none)_ | Custom OpenAI-compatible endpoint |
 | `OLLAMA_BASE_URL` | `http://localhost:11434/v1` | Ollama server URL |
-| `VECTORDB_PROVIDER` | `qdrant` | `qdrant` or `milvus` |
-| `QDRANT_URL` | `http://localhost:6333` | Qdrant server URL |
+| `VECTORDB_PROVIDER` | `chroma` | `chroma`, `qdrant`, or `milvus` |
+| `CHROMA_DATA_DIR` | `~/.eidetic/chroma/` | ChromaDB persistent data directory |
+| `QDRANT_URL` | `http://localhost:6333` | Qdrant server URL (when using qdrant provider) |
 | `QDRANT_API_KEY` | _(none)_ | Qdrant API key (for remote/cloud instances) |
 | `MILVUS_ADDRESS` | `localhost:19530` | Milvus server address |
 | `MILVUS_TOKEN` | _(none)_ | Milvus authentication token |
@@ -246,19 +247,17 @@ setx OPENAI_API_KEY sk-...     # Windows
 
 Or use Ollama for free local embeddings: `export EMBEDDING_PROVIDER=ollama`
 
-### Docker not installed (Qdrant can't auto-provision)
+### Using Qdrant instead of Chroma
 
-Eidetic auto-provisions Qdrant via Docker. If Docker isn't installed:
-- **Option A:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and retry
-- **Option B:** Run Qdrant manually and set `QDRANT_URL` to point to it
-
-### Qdrant unreachable at custom URL
-
-If you set `QDRANT_URL` to a remote instance, verify it's reachable:
+ChromaDB is the default (no Docker needed). To use Qdrant:
 
 ```bash
-curl http://your-qdrant-host:6333/healthz
+export VECTORDB_PROVIDER=qdrant
 ```
+
+Qdrant auto-provisions via Docker. If Docker isn't installed:
+- **Option A:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and retry
+- **Option B:** Run Qdrant manually and set `QDRANT_URL` to point to it
 
 ### Tree-sitter native build fails on Windows
 

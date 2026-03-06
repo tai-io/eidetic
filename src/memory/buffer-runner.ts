@@ -70,14 +70,8 @@ async function main(): Promise<void> {
       const embedding = createEmbedding(config);
       await embedding.initialize();
 
-      let vectordb;
-      if (config.vectordbProvider === 'milvus') {
-        const { MilvusVectorDB } = await import('../vectordb/milvus.js');
-        vectordb = new MilvusVectorDB();
-      } else {
-        const { QdrantVectorDB } = await import('../vectordb/qdrant.js');
-        vectordb = new QdrantVectorDB(config.qdrantUrl, config.qdrantApiKey);
-      }
+      const { createVectorDB } = await import('../vectordb/factory.js');
+      const vectordb = await createVectorDB(config, { skipBootstrap: true });
 
       const history = new MemoryHistory(getMemoryDbPath());
       const store = new MemoryStore(embedding, vectordb, history);

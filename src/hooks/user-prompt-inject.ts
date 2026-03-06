@@ -66,25 +66,18 @@ async function doWork(): Promise<HookResult> {
       return EMPTY_RESULT;
     }
 
-    const [{ loadConfig }, { createEmbedding }, { globalConceptsCollectionName }] =
+    const [{ loadConfig }, { createEmbedding }, { globalConceptsCollectionName }, { createVectorDB }] =
       await Promise.all([
         import('../config.js'),
         import('../embedding/factory.js'),
         import('../paths.js'),
+        import('../vectordb/factory.js'),
       ]);
 
     const config = loadConfig();
     const conceptsCol = globalConceptsCollectionName();
 
-    // Connect to vectordb without bootstrapping
-    let vectordb;
-    if (config.vectordbProvider === 'milvus') {
-      const { MilvusVectorDB } = await import('../vectordb/milvus.js');
-      vectordb = new MilvusVectorDB();
-    } else {
-      const { QdrantVectorDB } = await import('../vectordb/qdrant.js');
-      vectordb = new QdrantVectorDB(config.qdrantUrl, config.qdrantApiKey);
-    }
+    const vectordb = await createVectorDB(config, { skipBootstrap: true });
 
     // Quick-exit if no global concepts collection
     if (!(await vectordb.hasCollection(conceptsCol))) {

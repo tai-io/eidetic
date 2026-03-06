@@ -12,11 +12,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { indexFiles } from '../core/targeted-indexer.js';
 import { createEmbedding } from '../embedding/factory.js';
-import { QdrantVectorDB } from '../vectordb/qdrant.js';
-import { bootstrapQdrant } from '../infra/qdrant-bootstrap.js';
+import { createVectorDB } from '../vectordb/factory.js';
 import { loadConfig } from '../config.js';
 import { pathToCollectionName, normalizePath } from '../paths.js';
-import type { VectorDB } from '../vectordb/types.js';
 
 async function main(): Promise<void> {
   const manifestPath = process.argv[2];
@@ -52,14 +50,7 @@ async function main(): Promise<void> {
     const embedding = createEmbedding(config);
     await embedding.initialize();
 
-    let vectordb: VectorDB;
-    if (config.vectordbProvider === 'milvus') {
-      const { MilvusVectorDB } = await import('../vectordb/milvus.js');
-      vectordb = new MilvusVectorDB();
-    } else {
-      const { url: qdrantUrl } = await bootstrapQdrant();
-      vectordb = new QdrantVectorDB(qdrantUrl, config.qdrantApiKey);
-    }
+    const vectordb = await createVectorDB(config);
 
     const result = await indexFiles(projectPath, modifiedFiles, embedding, vectordb);
 

@@ -15,8 +15,7 @@ import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprot
 
 import { loadConfig } from './config.js';
 import { createEmbedding } from './embedding/factory.js';
-import { QdrantVectorDB } from './vectordb/qdrant.js';
-import { bootstrapQdrant } from './infra/qdrant-bootstrap.js';
+import { createVectorDB } from './vectordb/factory.js';
 import { StateManager, cleanupOrphanedSnapshots } from './state/snapshot.js';
 import { listProjects } from './state/registry.js';
 import { ToolHandlers, handleReadFile } from './tools.js';
@@ -90,19 +89,8 @@ async function main() {
     const embedding = createEmbedding(config);
     await embedding.initialize();
 
-    let vectordb;
-    if (config.vectordbProvider === 'milvus') {
-      const { MilvusVectorDB } = await import('./vectordb/milvus.js');
-      vectordb = new MilvusVectorDB();
-      console.log(`Using Milvus at ${config.milvusAddress}`);
-    } else {
-      const { url: qdrantUrl, provisioned: qdrantProvisioned } = await bootstrapQdrant();
-      vectordb = new QdrantVectorDB(qdrantUrl);
-      console.log(`Using Qdrant at ${qdrantUrl}`);
-      if (qdrantProvisioned) {
-        console.log('Qdrant was auto-provisioned via Docker (container: eidetic-qdrant).');
-      }
-    }
+    const vectordb = await createVectorDB(config);
+    console.log(`Using ${config.vectordbProvider} vector database.`);
 
     const cleaned = await cleanupOrphanedSnapshots(vectordb);
     if (cleaned > 0) {

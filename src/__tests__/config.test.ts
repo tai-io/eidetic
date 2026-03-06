@@ -28,7 +28,7 @@ describe('loadConfig', () => {
     expect(config.embeddingBatchSize).toBe(100);
     expect(config.indexingConcurrency).toBe(8);
     expect(config.qdrantUrl).toBe('http://localhost:6333');
-    expect(config.vectordbProvider).toBe('qdrant');
+    expect(config.vectordbProvider).toBe('chroma');
     expect(config.embeddingModel).toBe('text-embedding-3-small');
   });
 

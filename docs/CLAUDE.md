@@ -36,7 +36,7 @@ Single ESM package. MCP server over stdio that indexes codebases into a vector D
 
 **Key interfaces** — the pluggable boundaries:
 - `Embedding` (`src/embedding/types.ts`) — embed/embedBatch/estimateTokens. Implementations: OpenAI (`openai.ts`), factory selects by config.
-- `VectorDB` (`src/vectordb/types.ts`) — createCollection/insert/search/deleteByPath. Implementations: Qdrant (primary, hybrid search), Milvus (optional fallback).
+- `VectorDB` (`src/vectordb/types.ts`) — createCollection/insert/search/deleteByPath. Implementations: Chroma (default, auto-bootstraps embedded server), Qdrant (optional, Docker-based), Milvus (optional). Factory in `src/vectordb/factory.ts`.
 - `Splitter` (`src/splitter/types.ts`) — split code into chunks. AST splitter (tree-sitter) tried first, line splitter as fallback.
 
 **Concurrency control:** `tools.ts` has a per-path mutex (`withMutex`) preventing concurrent indexing of the same codebase. Multiple different codebases can index in parallel.
@@ -57,7 +57,7 @@ Single ESM package. MCP server over stdio that indexes codebases into a vector D
 
 ## Environment
 
-Only `OPENAI_API_KEY` is required for default config. Qdrant auto-provisions via Docker if not running. Set `VECTORDB_PROVIDER=milvus` for Milvus, `EMBEDDING_PROVIDER=ollama` for local embeddings.
+Only `OPENAI_API_KEY` is required for default config. ChromaDB is the default vector database — it auto-starts an embedded server via native bindings (no Docker needed). Set `VECTORDB_PROVIDER=qdrant` for Qdrant (auto-provisions via Docker), `VECTORDB_PROVIDER=milvus` for Milvus, `EMBEDDING_PROVIDER=ollama` for local embeddings.
 
 ## Plugin
 

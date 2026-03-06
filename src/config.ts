@@ -14,7 +14,8 @@ const configSchema = z
     indexingConcurrency: z.coerce.number().int().min(1).max(32).default(8),
     qdrantUrl: z.string().default('http://localhost:6333'),
     qdrantApiKey: z.string().optional(),
-    vectordbProvider: z.enum(['qdrant', 'milvus']).default('qdrant'),
+    vectordbProvider: z.enum(['chroma', 'qdrant', 'milvus']).default('chroma'),
+    chromaDataDir: z.string().optional(),
     milvusAddress: z.string().default('localhost:19530'),
     milvusToken: z.string().optional(),
     eideticDataDir: z.string().default(path.join(os.homedir(), '.eidetic')),
@@ -39,6 +40,8 @@ const configSchema = z
     embeddingModel:
       cfg.embeddingModel ??
       (cfg.embeddingProvider === 'ollama' ? 'nomic-embed-text' : 'text-embedding-3-small'),
+    // Default Chroma data directory under eidetic data dir
+    chromaDataDir: cfg.chromaDataDir ?? path.join(cfg.eideticDataDir, 'chroma'),
   }));
 
 export type Config = z.infer<typeof configSchema>;
@@ -57,6 +60,7 @@ export function loadConfig(): Config {
     qdrantUrl: process.env.QDRANT_URL,
     qdrantApiKey: process.env.QDRANT_API_KEY?.trim().replace(/^["']|["']$/g, '') ?? undefined,
     vectordbProvider: process.env.VECTORDB_PROVIDER,
+    chromaDataDir: process.env.CHROMA_DATA_DIR?.trim() ?? undefined,
     milvusAddress: process.env.MILVUS_ADDRESS,
     milvusToken: process.env.MILVUS_TOKEN?.trim().replace(/^["']|["']$/g, '') ?? undefined,
     eideticDataDir: process.env.EIDETIC_DATA_DIR,
