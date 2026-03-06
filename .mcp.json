@@ -3,17 +3,6 @@
     "sentry": {
       "type": "http",
       "url": "https://mcp.sentry.dev/mcp"
-    },
-    "claude-eidetic": {
-      "command": "node",
-      "args": [
-        "E:/workspace/eidetics/claude-eidetic/dist/index.js"
-      ],
-      "cwd": "E:/workspace/eidetics/claude-eidetic",
-      "env": {
-        "NODE_NO_WARNINGS": "1",
-        "OPENAI_API_KEY": "${OPENAI_API_KEY}"
-      }
     }
   }
 }
