@@ -1,12 +1,24 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { randomUUID } from 'node:crypto';
-import type { VectorDB, CodeDocument, HybridSearchParams, SearchResult, SymbolEntry } from './types.js';
+import type {
+  VectorDB,
+  CodeDocument,
+  HybridSearchParams,
+  SearchResult,
+  SymbolEntry,
+} from './types.js';
 import { VectorDBError } from '../errors.js';
 import { getConfig } from '../config.js';
 import { rankByTermFrequency, reciprocalRankFusion } from './rrf.js';
 
 // Re-export RRF utilities for backward compatibility
-export { RRF_K, RRF_ALPHA, rankByTermFrequency, reciprocalRankFusion, extractPayload } from './rrf.js';
+export {
+  RRF_K,
+  RRF_ALPHA,
+  rankByTermFrequency,
+  reciprocalRankFusion,
+  extractPayload,
+} from './rrf.js';
 export type { RankedPoint, ScoredPayload } from './rrf.js';
 
 export class QdrantVectorDB implements VectorDB {

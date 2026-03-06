@@ -91,10 +91,9 @@ export class ChromaVectorDB implements VectorDB {
       const collection = await this.getCollection(name);
       const fetchLimit = params.limit * 2;
 
-      const extensionWhere: Where | undefined =
-        params.extensionFilter?.length
-          ? { fileExtension: { $in: params.extensionFilter } }
-          : undefined;
+      const extensionWhere: Where | undefined = params.extensionFilter?.length
+        ? { fileExtension: { $in: params.extensionFilter } }
+        : undefined;
 
       // Dense vector search
       const denseResults = await collection.query({

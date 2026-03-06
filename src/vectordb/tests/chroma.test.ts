@@ -111,7 +111,10 @@ describe('ChromaVectorDB', () => {
       };
       expect(call.ids).toEqual(['1', '2']);
       expect(call.documents).toEqual(['hello', 'world']);
-      expect(call.embeddings).toEqual([[0.1, 0.2, 0.3], [0.1, 0.2, 0.3]]);
+      expect(call.embeddings).toEqual([
+        [0.1, 0.2, 0.3],
+        [0.1, 0.2, 0.3],
+      ]);
     });
 
     it('does nothing for empty array', async () => {
@@ -127,8 +130,24 @@ describe('ChromaVectorDB', () => {
         distances: [[0.1, 0.3]],
         metadatas: [
           [
-            { content: 'hello world', relativePath: 'a.ts', startLine: 1, endLine: 5, fileExtension: '.ts', language: 'typescript', fileCategory: 'source' },
-            { content: 'foo bar', relativePath: 'b.ts', startLine: 1, endLine: 5, fileExtension: '.ts', language: 'typescript', fileCategory: 'source' },
+            {
+              content: 'hello world',
+              relativePath: 'a.ts',
+              startLine: 1,
+              endLine: 5,
+              fileExtension: '.ts',
+              language: 'typescript',
+              fileCategory: 'source',
+            },
+            {
+              content: 'foo bar',
+              relativePath: 'b.ts',
+              startLine: 1,
+              endLine: 5,
+              fileExtension: '.ts',
+              language: 'typescript',
+              fileCategory: 'source',
+            },
           ],
         ],
         documents: [['hello world', 'foo bar']],
@@ -137,7 +156,15 @@ describe('ChromaVectorDB', () => {
       mockCollection.get.mockResolvedValueOnce({
         ids: ['1'],
         metadatas: [
-          { content: 'hello world', relativePath: 'a.ts', startLine: 1, endLine: 5, fileExtension: '.ts', language: 'typescript', fileCategory: 'source' },
+          {
+            content: 'hello world',
+            relativePath: 'a.ts',
+            startLine: 1,
+            endLine: 5,
+            fileExtension: '.ts',
+            language: 'typescript',
+            fileCategory: 'source',
+          },
         ],
       });
 
@@ -226,10 +253,7 @@ describe('ChromaVectorDB', () => {
 
       expect(mockCollection.delete).toHaveBeenCalledWith({
         where: {
-          $and: [
-            { fileCategory: { $eq: 'test' } },
-            { language: { $eq: 'typescript' } },
-          ],
+          $and: [{ fileCategory: { $eq: 'test' } }, { language: { $eq: 'typescript' } }],
         },
       });
     });
@@ -247,14 +271,16 @@ describe('ChromaVectorDB', () => {
     it('returns symbol entries from metadata', async () => {
       mockCollection.get.mockResolvedValueOnce({
         ids: ['1'],
-        metadatas: [{
-          symbolName: 'myFunc',
-          symbolKind: 'function',
-          relativePath: 'src/utils.ts',
-          startLine: 10,
-          symbolSignature: 'function myFunc(): void',
-          parentSymbol: '',
-        }],
+        metadatas: [
+          {
+            symbolName: 'myFunc',
+            symbolKind: 'function',
+            relativePath: 'src/utils.ts',
+            startLine: 10,
+            symbolSignature: 'function myFunc(): void',
+            parentSymbol: '',
+          },
+        ],
       });
 
       const symbols = await db.listSymbols('test');
@@ -273,7 +299,10 @@ describe('ChromaVectorDB', () => {
     it('returns all points with vectors and metadata', async () => {
       mockCollection.get.mockResolvedValueOnce({
         ids: ['1', '2'],
-        embeddings: [[0.1, 0.2], [0.3, 0.4]],
+        embeddings: [
+          [0.1, 0.2],
+          [0.3, 0.4],
+        ],
         metadatas: [{ content: 'a' }, { content: 'b' }],
       });
 

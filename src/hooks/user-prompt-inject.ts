@@ -66,13 +66,17 @@ async function doWork(): Promise<HookResult> {
       return EMPTY_RESULT;
     }
 
-    const [{ loadConfig }, { createEmbedding }, { globalConceptsCollectionName }, { createVectorDB }] =
-      await Promise.all([
-        import('../config.js'),
-        import('../embedding/factory.js'),
-        import('../paths.js'),
-        import('../vectordb/factory.js'),
-      ]);
+    const [
+      { loadConfig },
+      { createEmbedding },
+      { globalConceptsCollectionName },
+      { createVectorDB },
+    ] = await Promise.all([
+      import('../config.js'),
+      import('../embedding/factory.js'),
+      import('../paths.js'),
+      import('../vectordb/factory.js'),
+    ]);
 
     const config = loadConfig();
     const conceptsCol = globalConceptsCollectionName();

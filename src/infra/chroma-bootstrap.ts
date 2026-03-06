@@ -14,9 +14,7 @@ export interface ChromaBootstrapResult {
   provisioned: boolean;
 }
 
-export async function bootstrapChroma(
-  port: number = DEFAULT_PORT,
-): Promise<ChromaBootstrapResult> {
+export async function bootstrapChroma(port: number = DEFAULT_PORT): Promise<ChromaBootstrapResult> {
   const host = 'localhost';
 
   if (await isChromaHealthy(host, port)) {
@@ -37,11 +35,15 @@ export async function bootstrapChroma(
     );
   }
 
-  const child = spawn(process.execPath, [chromaBin, 'run', '--path', dataDir, '--port', String(port)], {
-    detached: true,
-    stdio: 'ignore',
-    windowsHide: true,
-  });
+  const child = spawn(
+    process.execPath,
+    [chromaBin, 'run', '--path', dataDir, '--port', String(port)],
+    {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    },
+  );
   child.unref();
 
   const healthy = await waitForHealth(host, port, HEALTH_TIMEOUT_MS);
