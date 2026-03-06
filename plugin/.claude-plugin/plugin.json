@@ -1,6 +1,6 @@
 {
   "name": "claude-eidetic",
-  "version": "2026.306.1459",
+  "version": "2026.306.1756",
   "description": "Semantic code search MCP server with skills, hooks, and auto-provisioning",
   "author": {
     "name": "eidetics"
