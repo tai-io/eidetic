@@ -214,18 +214,6 @@ export async function indexCodebase(
   onProgress?.(95, 'Saving snapshot...');
   saveSnapshot(normalizedPath, currentSnapshot);
 
-  // Run RAPTOR knowledge generation (non-fatal)
-  if (config.raptorEnabled) {
-    try {
-      onProgress?.(97, 'Generating knowledge summaries...');
-      const projectName = path.basename(normalizedPath);
-      const { runRaptor } = await import('./raptor.js');
-      await runRaptor(projectName, collectionName, embedding, vectordb);
-    } catch (err) {
-      console.warn(`RAPTOR knowledge generation failed (non-fatal): ${String(err)}`);
-    }
-  }
-
   onProgress?.(100, 'Done');
 
   return {

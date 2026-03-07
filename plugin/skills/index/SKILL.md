@@ -41,7 +41,33 @@ get_indexing_status(path="<PROJECT_PATH>")
 
 Report: files indexed, chunk count, status.
 
-## Step 5: What's Next
+## Step 5: RAPTOR Knowledge Generation
+
+Generate architectural knowledge summaries from the indexed code:
+
+```
+raptor_cluster(path="<PROJECT_PATH>")
+```
+
+Review the output. For clusters that **do not** have cached summaries:
+
+1. Spawn a Haiku agent (use `--model haiku` or `subagent_type: "general-purpose"` with model override) for each uncached cluster
+2. Give the agent this prompt:
+   > "Summarize this code cluster into 2-4 sentences describing its architectural purpose, key patterns used, and relationships to other components."
+3. Include the cluster's chunk contents in the agent prompt
+
+Collect all generated summaries, then store them:
+
+```
+raptor_store_summaries(path="<PROJECT_PATH>", summaries=[
+  { "clusterId": "<hash>", "summary": "<agent output>" },
+  ...
+])
+```
+
+**Skip this step** if `raptor_cluster` returns 0 clusters or all clusters are cached.
+
+## Step 6: What's Next
 
 Suggest these next actions:
 - `search_code("how does X work")` — try a semantic search on this codebase

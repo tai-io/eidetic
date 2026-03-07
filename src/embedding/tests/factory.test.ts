@@ -23,7 +23,6 @@ function makeConfig(overrides: Partial<Config> = {}): Config {
     customIgnorePatterns: [],
     raptorEnabled: true,
     raptorTimeoutMs: 60000,
-    raptorLlmModel: 'gpt-4o-mini',
     ...overrides,
   };
 }

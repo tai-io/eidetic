@@ -32,7 +32,6 @@ const configSchema = z
       z.boolean().default(true),
     ),
     raptorTimeoutMs: z.coerce.number().int().min(1000).default(60000),
-    raptorLlmModel: z.string().default('gpt-4o-mini'),
   })
   .transform((cfg) => ({
     ...cfg,
@@ -68,7 +67,6 @@ export function loadConfig(): Config {
     customIgnorePatterns: process.env.CUSTOM_IGNORE_PATTERNS,
     raptorEnabled: process.env.RAPTOR_ENABLED,
     raptorTimeoutMs: process.env.RAPTOR_TIMEOUT_MS,
-    raptorLlmModel: process.env.RAPTOR_LLM_MODEL,
   };
 
   const result = configSchema.safeParse(raw);
