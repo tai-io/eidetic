@@ -208,6 +208,10 @@ async function main() {
         return handlers.handleBrowseGraph(args ?? {});
       case 'cleanup_vectors':
         return handlers.handleCleanupVectors(args ?? {});
+      case 'raptor_cluster':
+        return handlers.handleRaptorCluster(args ?? {});
+      case 'raptor_store_summaries':
+        return handlers.handleRaptorStoreSummaries(args ?? {});
       case 'browse_structure':
         return handlers.handleBrowseStructure(args ?? {});
       case 'list_symbols':

@@ -1,6 +1,8 @@
 import { readFile, stat } from 'node:fs/promises';
+import nodePath from 'node:path';
 import { normalizePath, pathToCollectionName } from './paths.js';
 import { indexCodebase, previewCodebase, deleteSnapshot } from './core/indexer.js';
+import { clusterCodeChunks, storeRaptorSummaries } from './core/raptor.js';
 import { cleanupVectors } from './core/cleanup.js';
 import { scanFiles, buildSnapshot, diffSnapshots } from './core/sync.js';
 import { loadSnapshot } from './core/snapshot-io.js';
@@ -527,6 +529,87 @@ export class ToolHandlers {
     }
 
     return textResult(output);
+  }
+
+  async handleRaptorCluster(
+    args: Record<string, unknown>,
+  ): Promise<{ content: { type: string; text: string }[] }> {
+    const normalizedPath = resolvePath(args);
+    if (!normalizedPath) return noPathError();
+    const collectionName = pathToCollectionName(normalizedPath);
+    const project = (args.project as string | undefined) ?? nodePath.basename(normalizedPath);
+
+    try {
+      const result = await clusterCodeChunks(project, collectionName, this.vectordb);
+      if (result.clusters.length === 0) {
+        return textResult(
+          `No clusters generated (${result.totalPoints} points — need at least 3). Index more code first.`,
+        );
+      }
+
+      const cached = result.clusters.filter((c) => c.cachedSummary).length;
+      const uncached = result.clusters.length - cached;
+
+      let output = `## RAPTOR Clusters\n\n`;
+      output += `**${result.clusters.length}** clusters from **${result.totalPoints}** code chunks\n`;
+      output += `- ${cached} cached (no summarization needed)\n`;
+      output += `- ${uncached} uncached (need LLM summarization)\n\n`;
+
+      for (const cluster of result.clusters) {
+        output += `### Cluster \`${cluster.clusterId}\``;
+        if (cluster.cachedSummary) {
+          output += ` ✓ cached\n`;
+          output += `> ${cluster.cachedSummary}\n\n`;
+        } else {
+          output += ` — needs summary\n`;
+          output += `Files: ${[...new Set(cluster.chunks.map((c) => c.file))].join(', ')}\n`;
+          output += `<details><summary>${cluster.chunks.length} chunks</summary>\n\n`;
+          for (const chunk of cluster.chunks) {
+            output += `**${chunk.file}:${chunk.lines}**\n\`\`\`\n${chunk.content.slice(0, 500)}\n\`\`\`\n\n`;
+          }
+          output += `</details>\n\n`;
+        }
+      }
+
+      return textResult(output);
+    } catch (err) {
+      const message = getErrorMessage(err);
+      return textResult(`Error clustering: ${message}`);
+    }
+  }
+
+  async handleRaptorStoreSummaries(
+    args: Record<string, unknown>,
+  ): Promise<{ content: { type: string; text: string }[] }> {
+    const normalizedPath = resolvePath(args);
+    if (!normalizedPath) return noPathError();
+    const project = (args.project as string | undefined) ?? nodePath.basename(normalizedPath);
+
+    const summaries = args.summaries as { clusterId: string; summary: string }[] | undefined;
+    if (!summaries || !Array.isArray(summaries) || summaries.length === 0) {
+      return textResult(
+        'Error: "summaries" is required. Provide an array of {clusterId, summary} objects.',
+      );
+    }
+
+    try {
+      const result = await storeRaptorSummaries(
+        project,
+        summaries,
+        this.embedding,
+        this.vectordb,
+      );
+
+      let output = `## RAPTOR Summaries Stored\n\n`;
+      output += `- **${result.stored}** summaries embedded and stored in knowledge collection\n`;
+      output += `- Global concepts replication: ${result.replicatedToGlobal ? 'success' : 'skipped/failed'}\n`;
+      output += `\nKnowledge summaries are now searchable via \`search_code\`.`;
+
+      return textResult(output);
+    } catch (err) {
+      const message = getErrorMessage(err);
+      return textResult(`Error storing summaries: ${message}`);
+    }
   }
 
   async handleBrowseStructure(
