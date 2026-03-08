@@ -4,9 +4,8 @@ import {
   ConfigError,
   EmbeddingError,
   VectorDBError,
-  IndexingError,
-  SearchError,
-  BootstrapError,
+  MemoryError,
+  RaptorError,
 } from '../errors.js';
 
 describe('Error hierarchy', () => {
@@ -14,9 +13,8 @@ describe('Error hierarchy', () => {
     { Class: ConfigError, name: 'ConfigError' },
     { Class: EmbeddingError, name: 'EmbeddingError' },
     { Class: VectorDBError, name: 'VectorDBError' },
-    { Class: IndexingError, name: 'IndexingError' },
-    { Class: SearchError, name: 'SearchError' },
-    { Class: BootstrapError, name: 'BootstrapError' },
+    { Class: MemoryError, name: 'MemoryError' },
+    { Class: RaptorError, name: 'RaptorError' },
   ];
 
   for (const { Class, name } of errorClasses) {

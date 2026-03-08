@@ -1,6 +1,6 @@
 ---
 name: index
-description: Index a codebase for Eidetic semantic search
+description: Index a codebase for semantic search and generate knowledge
 ---
 
 # /index
@@ -27,7 +27,7 @@ index_codebase(path="<PROJECT_PATH>", dryRun=true)
 
 Show file count, extensions, top directories, warnings, and estimated cost if available.
 
-## Step 3: Index
+## Step 3: Index (via Codesearch)
 
 ```
 index_codebase(path="<PROJECT_PATH>")
@@ -41,7 +41,7 @@ get_indexing_status(path="<PROJECT_PATH>")
 
 Report: files indexed, chunk count, status.
 
-## Step 5: RAPTOR Knowledge Generation
+## Step 5: RAPTOR Knowledge Generation (via Eidetic)
 
 Generate architectural knowledge summaries from the indexed code:
 
@@ -71,4 +71,5 @@ raptor_store_summaries(path="<PROJECT_PATH>", summaries=[
 
 Suggest these next actions:
 - `search_code("how does X work")` — try a semantic search on this codebase
-- `/cache-docs <library>` — cache docs for a library you use frequently (e.g., React, Express)
+- `/cache-docs <library>` — cache docs for a library you use frequently
+- `search_memory("decisions about X")` — find stored knowledge about the codebase

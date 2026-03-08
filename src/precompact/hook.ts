@@ -12,14 +12,12 @@ import { fileURLToPath } from 'node:url';
 import { parseTranscript } from './transcript-parser.js';
 import { writeSessionNote } from './note-writer.js';
 import { updateSessionIndex, readSessionIndex } from './tier0-writer.js';
-import { spawnBackgroundIndexer } from './session-indexer.js';
 import { getNotesDir, getProjectId } from './utils.js';
 import { spawn } from 'node:child_process';
 
 // Resolve paths at module boundary (follows project convention)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const INDEX_RUNNER_PATH = path.join(__dirname, 'index-runner.js');
 const BUFFER_RUNNER_PATH = path.join(__dirname, '..', 'memory', 'buffer-runner.js');
 
 // Zod schema — handles both PreCompact and SessionEnd hook events
@@ -86,7 +84,6 @@ export async function run(): Promise<void> {
       } else {
         noteFile = writeSessionNote(notesDir, session);
         updateSessionIndex(notesDir, session, noteFile);
-        spawnBackgroundIndexer(notesDir, INDEX_RUNNER_PATH);
       }
 
       outputSuccess({
@@ -99,7 +96,6 @@ export async function run(): Promise<void> {
       // PreCompact: original flow
       noteFile = writeSessionNote(notesDir, session);
       updateSessionIndex(notesDir, session, noteFile);
-      spawnBackgroundIndexer(notesDir, INDEX_RUNNER_PATH);
 
       outputSuccess({
         noteFile,

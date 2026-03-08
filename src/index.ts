@@ -16,9 +16,7 @@ import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprot
 import { loadConfig } from './config.js';
 import { createEmbedding } from './embedding/factory.js';
 import { createVectorDB } from './vectordb/factory.js';
-import { StateManager, cleanupOrphanedSnapshots } from './state/snapshot.js';
-import { listProjects } from './state/registry.js';
-import { ToolHandlers, handleReadFile } from './tools.js';
+import { ToolHandlers } from './tools.js';
 import { TOOL_DEFINITIONS } from './tool-schemas.js';
 import { getSetupErrorMessage } from './setup-message.js';
 import { MemoryStore } from './memory/store.js';
@@ -26,55 +24,22 @@ import { MemoryHistory } from './memory/history.js';
 import { getMemoryDbPath } from './paths.js';
 import { BUILD_VERSION, BUILD_TIMESTAMP } from './build-info.js';
 
-const GETTING_STARTED = `# Eidetic — Getting Started
+const WORKFLOW_GUIDANCE = `# Eidetic — Persistent Memory
 
-1. \`index_codebase(path="...")\` — index this codebase (one-time, ~30s)
-2. \`search_code(query="how does X work")\` — search by meaning
-3. That's it. Use \`/index\` for a guided walkthrough.`;
+**Memory tools (cross-session developer knowledge):**
+- \`add_memory(facts=[{fact:"...", kind:"..."}])\` — stores pre-extracted facts classified by kind (fact/decision/convention/constraint/intent)
+- \`search_memory(query="...")\` — find relevant memories by semantic search
+- \`list_memories()\` — see all stored memories grouped by kind
+- \`delete_memory(id="...")\` — remove a specific memory
+- \`memory_history(id="...")\` — view change log for a memory
+- Memories are automatically deduplicated — adding similar facts updates existing ones
 
-const WORKFLOW_GUIDANCE = `# Eidetic Code Search Workflow
+**Knowledge graph:**
+- \`browse_graph()\` — explore entity relationships extracted from memory consolidation
 
-**Before searching:** Ensure the codebase is indexed.
-- \`list_indexed\` → see what's already indexed
-- \`index_codebase(path="...", dryRun=true)\` → preview before indexing
-- \`index_codebase(path="...")\` → index (incremental, only re-embeds changed files)
-
-**Searching efficiently:**
-- \`search_code(query="...")\` → returns compact table by default (~20 tokens/result)
-- Review the table, then use Read tool to fetch full code for interesting results
-- Add \`compact=false\` only when you need all code snippets immediately
-- Use \`extensionFilter\` to narrow by file type
-- Use \`project\` param instead of \`path\` for convenience
-- Start with specific queries, broaden if no results
-
-**Reading files efficiently:**
-- \`read_file(path="...")\` → raw content without line-number overhead (~15-20% fewer tokens for code, more for short-line files)
-- Use \`offset\` and \`limit\` to page through large files
-- Add \`lineNumbers=true\` only when you need line references for editing
-
-**After first index:**
-- Re-indexing is incremental (only changed files re-embedded)
-- Use \`project\` param instead of \`path\` for convenience
-- Use \`get_indexing_status\` to check progress during long indexes
-- Use \`cleanup_vectors(path="...", dryRun=true)\` to preview stale vectors, then without dryRun to remove them (no embedding cost)
-
-**Cross-project search:**
-- Index multiple projects, each with its own path
-- Search across any indexed project regardless of current working directory
-
-**Documentation caching (saves ~5K tokens per repeated doc fetch):**
-- After fetching docs via query-docs or WebFetch, cache them: \`index_document(content="...", source="<url>", library="<name>", topic="<topic>")\`
-- Next time you need the same docs: \`search_documents(query="...", library="<name>")\` (~20 tokens/result)
-- Docs are grouped by library — one collection per library, searchable across topics
-- Stale docs (past TTL) still return results but are flagged \`[STALE]\`
-
-**Persistent memory (cross-session developer knowledge):**
-- \`add_memory(facts=[{fact:"...", kind:"..."}])\` → stores pre-extracted facts classified by kind (fact/decision/convention/constraint/intent)
-- \`search_memory(query="...")\` → find relevant memories by semantic search
-- \`list_memories()\` → see all stored memories grouped by kind
-- \`delete_memory(id="...")\` → remove a specific memory
-- \`memory_history(id="...")\` → view change log for a memory
-- Memories are automatically deduplicated — adding similar facts updates existing ones`;
+**RAPTOR knowledge generation:**
+- \`raptor_cluster(path="...")\` — cluster code chunks for summarization
+- \`raptor_store_summaries(summaries=[...])\` — store LLM-generated cluster summaries`;
 
 async function main() {
   // CLI subcommand routing — hooks call `npx claude-eidetic hook <event>`
@@ -99,17 +64,7 @@ async function main() {
     const vectordb = await createVectorDB(config);
     console.log(`Using ${config.vectordbProvider} vector database.`);
 
-    const cleaned = await cleanupOrphanedSnapshots(vectordb);
-    if (cleaned > 0) {
-      console.log(`Cleaned ${cleaned} orphaned snapshot(s).`);
-    }
-
-    const state = new StateManager();
-    const hydrated = await state.hydrate(listProjects(), vectordb);
-    if (hydrated > 0) {
-      console.log(`Hydrated ${hydrated} project(s) from registry.`);
-    }
-    handlers = new ToolHandlers(embedding, vectordb, state);
+    handlers = new ToolHandlers(embedding, vectordb);
 
     // Initialize memory subsystem
     try {
@@ -159,13 +114,10 @@ async function main() {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
-    // Tools that work without initialization (no embedding/vectordb needed)
+    // Tools that work without initialization
     if (name === '__IMPORTANT') {
-      const hasProjects = Object.keys(listProjects()).length > 0;
-      const guidance = hasProjects ? WORKFLOW_GUIDANCE : GETTING_STARTED;
-      return { content: [{ type: 'text' as const, text: guidance }] };
+      return { content: [{ type: 'text' as const, text: WORKFLOW_GUIDANCE }] };
     }
-    if (name === 'read_file') return handleReadFile(args ?? {});
 
     if (!handlers) {
       return {
@@ -180,20 +132,6 @@ async function main() {
     }
 
     switch (name) {
-      case 'index_codebase':
-        return handlers.handleIndexCodebase(args ?? {});
-      case 'search_code':
-        return handlers.handleSearchCode(args ?? {});
-      case 'clear_index':
-        return handlers.handleClearIndex(args ?? {});
-      case 'get_indexing_status':
-        return handlers.handleGetIndexingStatus(args ?? {});
-      case 'list_indexed':
-        return handlers.handleListIndexed();
-      case 'index_document':
-        return handlers.handleIndexDocument(args ?? {});
-      case 'search_documents':
-        return handlers.handleSearchDocuments(args ?? {});
       case 'add_memory':
         return handlers.handleAddMemory(args ?? {});
       case 'search_memory':
@@ -206,16 +144,10 @@ async function main() {
         return handlers.handleMemoryHistory(args ?? {});
       case 'browse_graph':
         return handlers.handleBrowseGraph(args ?? {});
-      case 'cleanup_vectors':
-        return handlers.handleCleanupVectors(args ?? {});
       case 'raptor_cluster':
         return handlers.handleRaptorCluster(args ?? {});
       case 'raptor_store_summaries':
         return handlers.handleRaptorStoreSummaries(args ?? {});
-      case 'browse_structure':
-        return handlers.handleBrowseStructure(args ?? {});
-      case 'list_symbols':
-        return handlers.handleListSymbols(args ?? {});
       default:
         return {
           content: [{ type: 'text' as const, text: `Unknown tool: ${name}` }],

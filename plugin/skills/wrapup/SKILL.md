@@ -1,6 +1,6 @@
 ---
 name: wrapup
-description: Persist session state to searchable notes for future recovery
+description: Persist session state to memories and notes for future recovery
 ---
 
 # /wrapup
@@ -34,7 +34,24 @@ From the conversation, extract:
 
 If nothing meaningful to persist, inform user and stop.
 
-## Step 3: Write Note
+## Step 3: Store Memories
+
+Store extracted knowledge as memories:
+
+```
+add_memory(
+  facts=[
+    { "fact": "<decision or convention>", "kind": "decision" },
+    { "fact": "<code change description>", "kind": "fact" },
+    { "fact": "<next action>", "kind": "intent" },
+    ...
+  ],
+  project="<PROJECT_NAME>",
+  source="wrapup"
+)
+```
+
+## Step 4: Write Note
 
 ```bash
 mkdir -p "$NOTES_DIR"
@@ -76,14 +93,6 @@ branch: <current git branch>
 
 Date and project appear 4 times for search reliability — keep all occurrences.
 
-## Step 4: Index
-
-```
-index_codebase(path="<NOTES_DIR>")
-```
-
-Do not use `force: true`.
-
 ## Step 5: Confirm
 
-Report: file path saved, count of decisions/changes/open questions, index updated.
+Report: file path saved, memories stored, count of decisions/changes/open questions.
