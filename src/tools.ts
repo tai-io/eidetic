@@ -300,12 +300,7 @@ export class ToolHandlers {
     }
 
     try {
-      const result = await storeRaptorSummaries(
-        project,
-        summaries,
-        this.embedding,
-        this.vectordb,
-      );
+      const result = await storeRaptorSummaries(project, summaries, this.embedding, this.vectordb);
 
       let output = `## RAPTOR Summaries Stored\n\n`;
       output += `- **${result.stored}** summaries embedded and stored in knowledge collection\n`;
