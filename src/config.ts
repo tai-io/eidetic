@@ -19,20 +19,11 @@ const configSchema = z
     milvusAddress: z.string().default('localhost:19530'),
     milvusToken: z.string().optional(),
     eideticDataDir: z.string().default(path.join(os.homedir(), '.eidetic')),
-    customExtensions: z.preprocess(
-      (val) => (typeof val === 'string' ? JSON.parse(val) : val),
-      z.array(z.string()).default([]),
-    ),
-    customIgnorePatterns: z.preprocess(
-      (val) => (typeof val === 'string' ? JSON.parse(val) : val),
-      z.array(z.string()).default([]),
-    ),
     raptorEnabled: z.preprocess(
       (val) => (val === 'false' ? false : val === 'true' ? true : val),
       z.boolean().default(true),
     ),
     raptorTimeoutMs: z.coerce.number().int().min(1000).default(60000),
-    raptorLlmModel: z.string().default('gpt-4o-mini'),
   })
   .transform((cfg) => ({
     ...cfg,
@@ -64,11 +55,8 @@ export function loadConfig(): Config {
     milvusAddress: process.env.MILVUS_ADDRESS,
     milvusToken: process.env.MILVUS_TOKEN?.trim().replace(/^["']|["']$/g, '') ?? undefined,
     eideticDataDir: process.env.EIDETIC_DATA_DIR,
-    customExtensions: process.env.CUSTOM_EXTENSIONS,
-    customIgnorePatterns: process.env.CUSTOM_IGNORE_PATTERNS,
     raptorEnabled: process.env.RAPTOR_ENABLED,
     raptorTimeoutMs: process.env.RAPTOR_TIMEOUT_MS,
-    raptorLlmModel: process.env.RAPTOR_LLM_MODEL,
   };
 
   const result = configSchema.safeParse(raw);

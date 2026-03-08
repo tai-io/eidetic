@@ -72,7 +72,7 @@ export async function consolidateBuffer(
 
   const config = getConfig();
   const baseUrl = config.openaiBaseUrl ?? 'https://api.openai.com/v1';
-  const llmModel = model ?? config.raptorLlmModel;
+  const llmModel = model ?? 'gpt-4o-mini';
 
   const userContent = items
     .map((item, i) => `${i + 1}. [${item.source}/${item.tool_name ?? 'unknown'}] ${item.content}`)

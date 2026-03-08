@@ -1,6 +1,6 @@
 ---
 name: catchup
-description: Recover session context from Eidetic-searchable notes
+description: Recover session context from Eidetic memories and notes
 ---
 
 # /catchup
@@ -23,24 +23,30 @@ fi
 
 - Argument overrides PROJECT_NAME (e.g. `/catchup myproject`).
 - If NO_GIT_REPO and no argument, ask for project name.
-- If EXISTS=no or FILE_COUNT=0: "No session notes for <PROJECT_NAME>. Run /wrapup to enable recovery." Stop.
 
-## Step 2: Refresh Index
+## Step 2: Search Memories
 
 ```
-index_codebase(path="<NOTES_DIR>")
+search_memory(query="recent decisions and changes", project="<PROJECT_NAME>", limit=10)
 ```
 
-## Step 3: Search
+## Step 3: Read Recent Notes
+
+If notes directory exists:
+
+```bash
+ls -t "$NOTES_DIR"/*.md 2>/dev/null | head -3
+```
+
+Read the top 2-3 most recent note files.
+
+## Step 4: Optionally Search Code Context
+
+If codesearch is available and the notes are indexed:
 
 ```
 search_code(path="<NOTES_DIR>", query="recent decisions and changes for <PROJECT_NAME>", limit=5)
-search_code(path="<NOTES_DIR>", query="open questions next actions blockers", limit=5)
 ```
-
-## Step 4: Read Top Notes
-
-Collect unique file paths, sort by filename date descending, read top 2-3 in full.
 
 ## Step 5: Present Summary
 
@@ -50,15 +56,7 @@ Collect unique file paths, sort by filename date descending, read top 2-3 in ful
 - <Key decision or change>
 - <Critical open question>
 - <Next action>
-**Open items:** <N> | **Notes:** <N> files, <date range>
+**Memories:** <N> relevant | **Notes:** <N> files, <date range>
 ```
 
 Expand only if user asks.
-
-## Fallback
-
-If Eidetic fails, read the 3 most recent files directly:
-
-```bash
-ls -t "$NOTES_DIR"/*.md 2>/dev/null | head -3
-```

@@ -71,7 +71,7 @@ async function main(): Promise<void> {
       await embedding.initialize();
 
       const { createVectorDB } = await import('../vectordb/factory.js');
-      const vectordb = await createVectorDB(config, { skipBootstrap: true });
+      const vectordb = await createVectorDB(config);
 
       const history = new MemoryHistory(getMemoryDbPath());
       const store = new MemoryStore(embedding, vectordb, history);

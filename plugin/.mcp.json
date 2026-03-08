@@ -5,5 +5,12 @@
     "env": {
       "OPENAI_API_KEY": "${OPENAI_API_KEY}"
     }
+  },
+  "claude-codesearch": {
+    "command": "npx",
+    "args": ["claude-codesearch"],
+    "env": {
+      "OPENAI_API_KEY": "${OPENAI_API_KEY}"
+    }
   }
 }

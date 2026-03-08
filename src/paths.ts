@@ -19,34 +19,12 @@ export function getDataDir(): string {
   return normalizePath(getConfig().eideticDataDir);
 }
 
-export function getSnapshotDir(): string {
-  return `${getDataDir()}/snapshots`;
-}
-
 export function getCacheDir(): string {
   return `${getDataDir()}/cache`;
 }
 
 export function getRegistryPath(): string {
   return `${getDataDir()}/registry.json`;
-}
-
-export function pathToCollectionName(absolutePath: string): string {
-  const normalized = normalizePath(absolutePath);
-  const safe = normalized
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
-  return `eidetic_${safe}`;
-}
-
-export function getSnapshotDbPath(): string {
-  return `${getDataDir()}/snapshots.db`;
-}
-
-export function getDocMetadataPath(): string {
-  return `${getDataDir()}/doc-metadata.json`;
 }
 
 export function getMemoryDbPath(): string {
@@ -67,13 +45,4 @@ export function knowledgeCollectionName(project: string): string {
 
 export function globalConceptsCollectionName(): string {
   return 'eidetic_global_concepts';
-}
-
-export function docCollectionName(library: string): string {
-  const safe = library
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
-  return `doc_${safe}`;
 }

@@ -1,6 +1,6 @@
 ---
 name: search
-description: Semantic code search using Eidetic
+description: Semantic code search using Codesearch
 ---
 
 # /search

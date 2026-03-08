@@ -11,8 +11,5 @@ export class EideticError extends Error {
 export class ConfigError extends EideticError {}
 export class EmbeddingError extends EideticError {}
 export class VectorDBError extends EideticError {}
-export class IndexingError extends EideticError {}
-export class SearchError extends EideticError {}
-export class BootstrapError extends EideticError {}
 export class MemoryError extends EideticError {}
 export class RaptorError extends EideticError {}

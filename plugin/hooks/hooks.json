@@ -1,5 +1,5 @@
 {
-  "description": "Eidetic code search hooks",
+  "description": "Eidetic memory + Codesearch hooks",
   "hooks": {
     "SessionStart": [
       {
@@ -76,28 +76,9 @@
             "timeout": 3
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/user-prompt-inject.sh\"",
-            "timeout": 4
-          }
-        ]
       }
     ],
     "PreToolUse": [
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/prefer-eidetic.sh\"",
-            "timeout": 5
-          }
-        ]
-      },
       {
         "matcher": "Grep",
         "hooks": [

@@ -1,12 +1,14 @@
 {
   "name": "claude-eidetic",
   "version": "2026.306.1811",
-  "description": "Semantic code search MCP server with skills, hooks, and auto-provisioning",
+  "description": "Persistent memory for AI agents with semantic code search",
   "author": {
     "name": "eidetics"
   },
   "license": "MIT",
   "keywords": [
+    "memory",
+    "knowledge-graph",
     "code-search",
     "semantic-search",
     "mcp",

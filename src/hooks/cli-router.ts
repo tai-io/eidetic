@@ -7,23 +7,8 @@
 
 export async function runHook(event: string | undefined): Promise<void> {
   switch (event) {
-    case 'stop': {
-      const { run } = await import('./stop-hook.js');
-      await run();
-      break;
-    }
-    case 'post-tool-use': {
-      const { run } = await import('./post-tool-use.js');
-      await run();
-      break;
-    }
     case 'post-tool-extract': {
       const { run } = await import('./post-tool-extract.js');
-      await run();
-      break;
-    }
-    case 'user-prompt-inject': {
-      const { run } = await import('./user-prompt-inject.js');
       await run();
       break;
     }
@@ -59,7 +44,10 @@ export async function runHook(event: string | undefined): Promise<void> {
         const output = {
           hookSpecificOutput: {
             hookEventName: 'SessionStart',
-            additionalContext: getSetupErrorMessage(detail ?? 'OPENAI_API_KEY is not set.', mode as 'missing' | 'invalid' | 'unknown'),
+            additionalContext: getSetupErrorMessage(
+              detail ?? 'OPENAI_API_KEY is not set.',
+              mode as 'missing' | 'invalid' | 'unknown',
+            ),
           },
         };
         process.stdout.write(JSON.stringify(output));

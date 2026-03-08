@@ -1,96 +1,102 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { Embedding } from '../embedding/types.js';
 import type { VectorDB } from '../vectordb/types.js';
-import { getConfig } from '../config.js';
 import { knowledgeCollectionName } from '../paths.js';
-import { RaptorError } from '../errors.js';
 import { getCachedSummary, setCachedSummary } from './raptor-cache.js';
 
-export interface RaptorResult {
-  clustersProcessed: number;
-  summariesGenerated: number;
-  cached: number;
-  timedOut: boolean;
+export interface ClusterData {
+  clusterId: string;
+  chunks: { content: string; file: string; lines: string }[];
+  cachedSummary?: string;
+}
+
+export interface ClusterResult {
+  clusters: ClusterData[];
+  totalPoints: number;
+}
+
+export interface StoreSummariesResult {
+  stored: number;
+  replicatedToGlobal: boolean;
 }
 
 interface Point {
   id: string | number;
   vector: number[];
   content: string;
+  file?: string;
+  startLine?: number;
+  endLine?: number;
 }
 
 /**
- * Run RAPTOR knowledge generation: cluster code chunks, summarize each cluster,
- * store summaries in the knowledge collection.
+ * Cluster indexed code chunks and return cluster data with cache hits.
+ * Does NOT call any LLM — returns data for external summarization.
  */
-export async function runRaptor(
+export async function clusterCodeChunks(
   project: string,
   codeCollectionName: string,
-  embedding: Embedding,
   vectordb: VectorDB,
-  options?: { timeoutMs?: number; llmModel?: string; summarize?: LlmSummarizer },
-): Promise<RaptorResult> {
-  const config = getConfig();
-  const timeoutMs = options?.timeoutMs ?? config.raptorTimeoutMs;
-  const llmModel = options?.llmModel ?? config.raptorLlmModel;
-  const deadline = Date.now() + timeoutMs;
-
-  // Scroll all points from code collection
+): Promise<ClusterResult> {
   const points = await vectordb.scrollAll(codeCollectionName);
   if (points.length < 3) {
-    return { clustersProcessed: 0, summariesGenerated: 0, cached: 0, timedOut: false };
+    return { clusters: [], totalPoints: points.length };
   }
 
   const mapped: Point[] = points.map((p) => ({
     id: p.id,
     vector: p.vector,
     content: typeof p.payload.content === 'string' ? p.payload.content : '',
+    file: typeof p.payload.relativePath === 'string' ? p.payload.relativePath : undefined,
+    startLine: typeof p.payload.startLine === 'number' ? p.payload.startLine : undefined,
+    endLine: typeof p.payload.endLine === 'number' ? p.payload.endLine : undefined,
   }));
 
-  // Cluster
   const k = Math.max(3, Math.floor(Math.sqrt(mapped.length / 2)));
   const clusters = kMeans(mapped, k);
 
-  // Ensure knowledge collection exists
+  const result: ClusterData[] = [];
+
+  for (const cluster of clusters) {
+    if (cluster.length === 0) continue;
+
+    const hash = clusterHash(cluster.map((p) => String(p.id)));
+    const cached = getCachedSummary(hash);
+
+    result.push({
+      clusterId: hash,
+      chunks: cluster.map((p) => ({
+        content: p.content,
+        file: p.file ?? 'unknown',
+        lines: `${p.startLine ?? 0}-${p.endLine ?? 0}`,
+      })),
+      cachedSummary: cached ?? undefined,
+    });
+  }
+
+  return { clusters: result, totalPoints: mapped.length };
+}
+
+/**
+ * Store LLM-generated summaries for clusters.
+ * Embeds each summary, stores in knowledge collection, updates cache, replicates to global concepts.
+ */
+export async function storeRaptorSummaries(
+  project: string,
+  summaries: { clusterId: string; summary: string }[],
+  embedding: Embedding,
+  vectordb: VectorDB,
+): Promise<StoreSummariesResult> {
   const knowledgeCol = knowledgeCollectionName(project);
   if (!(await vectordb.hasCollection(knowledgeCol))) {
     await vectordb.createCollection(knowledgeCol, embedding.dimension);
   }
 
-  const summarizeFn = options?.summarize ?? defaultSummarize;
-  let summariesGenerated = 0;
-  let cached = 0;
-  let timedOut = false;
+  let stored = 0;
 
-  for (const cluster of clusters) {
-    if (Date.now() >= deadline) {
-      timedOut = true;
-      break;
-    }
-    if (cluster.length === 0) continue;
-
-    // Compute cluster hash from sorted member IDs
-    const hash = clusterHash(cluster.map((p) => String(p.id)));
-
-    // Check cache
-    const cachedSummary = getCachedSummary(hash);
-    let summary: string;
-
-    if (cachedSummary) {
-      summary = cachedSummary;
-      cached++;
-    } else {
-      // LLM summarize
-      const combinedContent = cluster.map((p) => p.content).join('\n\n---\n\n');
-      summary = await summarizeFn(combinedContent, llmModel, config.openaiApiKey);
-      setCachedSummary(hash, summary, project, 0);
-      summariesGenerated++;
-    }
-
-    // Skip empty summaries to avoid embedding API errors
+  for (const { clusterId, summary } of summaries) {
     if (!summary.trim()) continue;
 
-    // Embed summary and store in knowledge collection
     const vector = await embedding.embed(summary);
     const pointId = randomUUID();
     await vectordb.updatePoint(knowledgeCol, pointId, vector, {
@@ -100,64 +106,27 @@ export async function runRaptor(
       endLine: 0,
       fileExtension: 'knowledge',
       language: 'summary',
-      cluster_hash: hash,
+      cluster_hash: clusterId,
       project,
       level: 0,
       source: 'raptor',
     });
+
+    setCachedSummary(clusterId, summary, project, 0);
+    stored++;
   }
 
   // Replicate to global concepts (non-fatal)
+  let replicatedToGlobal = false;
   try {
     const { replicateToGlobalConcepts } = await import('./global-concepts.js');
     await replicateToGlobalConcepts(project, knowledgeCol, embedding, vectordb);
+    replicatedToGlobal = true;
   } catch (err) {
     console.warn(`Global concepts replication failed (non-fatal): ${String(err)}`);
   }
 
-  return {
-    clustersProcessed: clusters.filter((c) => c.length > 0).length,
-    summariesGenerated,
-    cached,
-    timedOut,
-  };
-}
-
-export type LlmSummarizer = (content: string, model: string, apiKey: string) => Promise<string>;
-
-async function defaultSummarize(content: string, model: string, apiKey: string): Promise<string> {
-  const config = getConfig();
-  const baseUrl = config.openaiBaseUrl ?? 'https://api.openai.com/v1';
-
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a code analyst. Summarize the following code chunks into a concise architectural description. Focus on what the code does, key patterns, and relationships between components. Be concise (2-4 sentences).',
-        },
-        { role: 'user', content: content.slice(0, 8000) },
-      ],
-      max_tokens: 300,
-      temperature: 0,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new RaptorError(`LLM summarization failed: ${response.status} ${response.statusText}`);
-  }
-
-  const data = (await response.json()) as {
-    choices: { message: { content: string } }[];
-  };
-  return data.choices[0]?.message?.content ?? '';
+  return { stored, replicatedToGlobal };
 }
 
 /**

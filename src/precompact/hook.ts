@@ -10,17 +10,14 @@ import { z } from 'zod';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseTranscript } from './transcript-parser.js';
-import { writeSessionNote, formatSessionNote } from './note-writer.js';
+import { writeSessionNote } from './note-writer.js';
 import { updateSessionIndex, readSessionIndex } from './tier0-writer.js';
-import { spawnBackgroundIndexer } from './session-indexer.js';
 import { getNotesDir, getProjectId } from './utils.js';
-import { extractMemoriesFromTranscript } from './memory-extractor.js';
 import { spawn } from 'node:child_process';
 
 // Resolve paths at module boundary (follows project convention)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const INDEX_RUNNER_PATH = path.join(__dirname, 'index-runner.js');
 const BUFFER_RUNNER_PATH = path.join(__dirname, '..', 'memory', 'buffer-runner.js');
 
 // Zod schema — handles both PreCompact and SessionEnd hook events
@@ -87,7 +84,6 @@ export async function run(): Promise<void> {
       } else {
         noteFile = writeSessionNote(notesDir, session);
         updateSessionIndex(notesDir, session, noteFile);
-        spawnBackgroundIndexer(notesDir, INDEX_RUNNER_PATH);
       }
 
       outputSuccess({
@@ -100,7 +96,6 @@ export async function run(): Promise<void> {
       // PreCompact: original flow
       noteFile = writeSessionNote(notesDir, session);
       updateSessionIndex(notesDir, session, noteFile);
-      spawnBackgroundIndexer(notesDir, INDEX_RUNNER_PATH);
 
       outputSuccess({
         noteFile,
@@ -108,54 +103,10 @@ export async function run(): Promise<void> {
         tasksCreated: session.tasksCreated.length,
       });
     }
-    // Extract and store memories from session note (non-fatal, fire-and-forget)
-    if (!skippedNote) {
-      void extractAndStoreMemories(session, projectId);
-    }
-
     // Flush remaining buffer items for this session (fire-and-forget)
     void flushSessionBuffer(hookInput.session_id, projectId);
   } catch (err) {
     outputError(err instanceof Error ? err.message : String(err));
-  }
-}
-
-async function extractAndStoreMemories(
-  session: import('./types.js').ExtractedSession,
-  projectName: string,
-): Promise<void> {
-  try {
-    const { loadConfig } = await import('../config.js');
-    const config = loadConfig();
-    if (!config.raptorEnabled) return;
-
-    const sessionNoteText = formatSessionNote(session);
-    const memories = await extractMemoriesFromTranscript(sessionNoteText, config.openaiApiKey);
-    if (memories.length === 0) return;
-
-    const [{ createEmbedding }, { MemoryHistory }, { MemoryStore }, { getMemoryDbPath }] =
-      await Promise.all([
-        import('../embedding/factory.js'),
-        import('../memory/history.js'),
-        import('../memory/store.js'),
-        import('../paths.js'),
-      ]);
-
-    const embedding = createEmbedding(config);
-    await embedding.initialize();
-
-    const { createVectorDB } = await import('../vectordb/factory.js');
-    const vectordb = await createVectorDB(config, { skipBootstrap: true });
-
-    const history = new MemoryHistory(getMemoryDbPath());
-    const store = new MemoryStore(embedding, vectordb, history);
-
-    const facts = memories.map((m) => ({ fact: m.content, kind: m.kind, valid_at: m.valid_at }));
-    await store.addMemory(facts, 'session-extract', projectName);
-
-    process.stderr.write(`[eidetic] Extracted ${memories.length} memories from session\n`);
-  } catch (err) {
-    process.stderr.write(`[eidetic] Memory extraction failed (non-fatal): ${String(err)}\n`);
   }
 }
 
