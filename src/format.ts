@@ -55,9 +55,7 @@ export function formatQueryGroupList(groups: QueryWithFacts[]): string {
 
   for (const group of groups) {
     const projectTag =
-      group.query.project && group.query.project !== 'global'
-        ? ` [${group.query.project}]`
-        : '';
+      group.query.project && group.query.project !== 'global' ? ` [${group.query.project}]` : '';
     lines.push(`### ${group.query.query_text}${projectTag}`);
     lines.push(`ID: ${group.query.id} | ${group.query.created_at.slice(0, 10)}`);
     for (const fact of group.facts) {

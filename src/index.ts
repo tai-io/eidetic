@@ -47,7 +47,6 @@ const WORKFLOW_GUIDANCE = `# Eidetic — Persistent Memory
 - \`raptor_cluster(path="...")\` — cluster code chunks for summarization
 - \`raptor_store_summaries(summaries=[...])\` — store LLM-generated cluster summaries`;
 
-
 async function main() {
   // CLI subcommand routing — hooks call `npx claude-eidetic hook <event>`
   if (process.argv[2] === 'hook') {

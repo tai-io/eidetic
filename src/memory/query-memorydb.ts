@@ -8,7 +8,13 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
-import type { QueryRecord, FactRecord, QuerySearchHit, QueryWithFacts, MemoryKind } from './types.js';
+import type {
+  QueryRecord,
+  FactRecord,
+  QuerySearchHit,
+  QueryWithFacts,
+  MemoryKind,
+} from './types.js';
 
 // --- Vector helpers (reused from old sqlite-memorydb.ts) ---
 
@@ -99,7 +105,10 @@ export class QueryMemoryDB {
     `);
   }
 
-  addQueryWithFacts(query: Omit<QueryRecord, 'query_vector'> & { query_vector: number[] }, facts: Omit<FactRecord, 'query_id'>[]): void {
+  addQueryWithFacts(
+    query: Omit<QueryRecord, 'query_vector'> & { query_vector: number[] },
+    facts: Omit<FactRecord, 'query_id'>[],
+  ): void {
     const insertQuery = this.db.prepare(
       'INSERT INTO queries (id, query_text, query_vector, session_id, project, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     );
@@ -110,7 +119,14 @@ export class QueryMemoryDB {
     const vectorBlob = vectorToBlob(query.query_vector);
 
     const tx = this.db.transaction(() => {
-      insertQuery.run(query.id, query.query_text, vectorBlob, query.session_id, query.project, query.created_at);
+      insertQuery.run(
+        query.id,
+        query.query_text,
+        vectorBlob,
+        query.session_id,
+        query.project,
+        query.created_at,
+      );
       for (const fact of facts) {
         insertFact.run(fact.id, query.id, fact.fact_text, fact.kind, fact.created_at);
       }
@@ -159,17 +175,27 @@ export class QueryMemoryDB {
   }
 
   getFactsForQuery(queryId: string): FactRecord[] {
-    const rows = this.db.prepare('SELECT * FROM facts WHERE query_id = ? ORDER BY created_at').all(queryId) as FactRow[];
+    const rows = this.db
+      .prepare('SELECT * FROM facts WHERE query_id = ? ORDER BY created_at')
+      .all(queryId) as FactRow[];
     return rows.map((row) => this.rowToFactRecord(row));
   }
 
   getQueryById(queryId: string): QueryRecord | null {
-    const row = this.db.prepare('SELECT * FROM queries WHERE id = ?').get(queryId) as QueryRow | undefined;
+    const row = this.db.prepare('SELECT * FROM queries WHERE id = ?').get(queryId) as
+      | QueryRow
+      | undefined;
     return row ? this.rowToQueryRecord(row) : null;
   }
 
-  findSimilarQuery(queryVector: number[], project: string, threshold = 0.92): { query: QueryRecord; similarity: number } | null {
-    const rows = this.db.prepare('SELECT * FROM queries WHERE project = ?').all(project) as QueryRow[];
+  findSimilarQuery(
+    queryVector: number[],
+    project: string,
+    threshold = 0.92,
+  ): { query: QueryRecord; similarity: number } | null {
+    const rows = this.db
+      .prepare('SELECT * FROM queries WHERE project = ?')
+      .all(project) as QueryRow[];
 
     let best: { query: QueryRecord; similarity: number } | null = null;
 
@@ -190,28 +216,30 @@ export class QueryMemoryDB {
   }
 
   listByProject(project: string, limit = 50, kind?: string): QueryWithFacts[] {
-    const rows = this.db.prepare(
-      'SELECT * FROM queries WHERE project = ? ORDER BY created_at DESC LIMIT ?',
-    ).all(project, limit) as QueryRow[];
+    const rows = this.db
+      .prepare('SELECT * FROM queries WHERE project = ? ORDER BY created_at DESC LIMIT ?')
+      .all(project, limit) as QueryRow[];
 
-    return rows.map((row) => {
-      let facts: FactRecord[];
-      if (kind) {
-        const factRows = this.db.prepare(
-          'SELECT * FROM facts WHERE query_id = ? AND kind = ? ORDER BY created_at',
-        ).all(row.id, kind) as FactRow[];
-        facts = factRows.map((r) => this.rowToFactRecord(r));
-      } else {
-        facts = this.getFactsForQuery(row.id);
-      }
-      return { query: this.rowToQueryRecord(row), facts };
-    }).filter((qf) => qf.facts.length > 0);
+    return rows
+      .map((row) => {
+        let facts: FactRecord[];
+        if (kind) {
+          const factRows = this.db
+            .prepare('SELECT * FROM facts WHERE query_id = ? AND kind = ? ORDER BY created_at')
+            .all(row.id, kind) as FactRow[];
+          facts = factRows.map((r) => this.rowToFactRecord(r));
+        } else {
+          facts = this.getFactsForQuery(row.id);
+        }
+        return { query: this.rowToQueryRecord(row), facts };
+      })
+      .filter((qf) => qf.facts.length > 0);
   }
 
   listAll(limit = 100): QueryWithFacts[] {
-    const rows = this.db.prepare(
-      'SELECT * FROM queries ORDER BY created_at DESC LIMIT ?',
-    ).all(limit) as QueryRow[];
+    const rows = this.db
+      .prepare('SELECT * FROM queries ORDER BY created_at DESC LIMIT ?')
+      .all(limit) as QueryRow[];
 
     return rows.map((row) => ({
       query: this.rowToQueryRecord(row),
@@ -221,7 +249,9 @@ export class QueryMemoryDB {
 
   queryCount(project?: string): number {
     if (project) {
-      const row = this.db.prepare('SELECT COUNT(*) as cnt FROM queries WHERE project = ?').get(project) as { cnt: number };
+      const row = this.db
+        .prepare('SELECT COUNT(*) as cnt FROM queries WHERE project = ?')
+        .get(project) as { cnt: number };
       return row.cnt;
     }
     const row = this.db.prepare('SELECT COUNT(*) as cnt FROM queries').get() as { cnt: number };

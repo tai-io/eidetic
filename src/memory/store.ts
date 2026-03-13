@@ -63,7 +63,14 @@ export class MemoryStore {
 
       if (newFacts.length > 0) {
         this.memorydb.addFactsToQuery(existing.query.id, newFacts);
-        this.history.log(existing.query.id, 'MERGE', queryText, existing.query.query_text, 'merge', now);
+        this.history.log(
+          existing.query.id,
+          'MERGE',
+          queryText,
+          existing.query.query_text,
+          'merge',
+          now,
+        );
       }
 
       return {
@@ -187,11 +194,7 @@ export class MemoryStore {
   /**
    * Search and return raw query hits (for tools that want grouped output).
    */
-  async searchQueryHits(
-    query: string,
-    limit = 10,
-    project?: string,
-  ): Promise<QuerySearchHit[]> {
+  async searchQueryHits(query: string, limit = 10, project?: string): Promise<QuerySearchHit[]> {
     const queryVector = await this.embedding.embed(query);
 
     const hits: QuerySearchHit[] = [];

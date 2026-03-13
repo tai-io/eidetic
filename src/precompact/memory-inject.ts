@@ -24,15 +24,21 @@ export async function run(): Promise<void> {
 
     const projectName = path.basename(projectPath);
 
-    const [{ loadConfig }, { createEmbedding }, { MemoryHistory }, { MemoryStore }, { QueryMemoryDB }, { getMemoryDbPath, getMemoryStorePath }] =
-      await Promise.all([
-        import('../config.js'),
-        import('../embedding/factory.js'),
-        import('../memory/history.js'),
-        import('../memory/store.js'),
-        import('../memory/query-memorydb.js'),
-        import('../paths.js'),
-      ]);
+    const [
+      { loadConfig },
+      { createEmbedding },
+      { MemoryHistory },
+      { MemoryStore },
+      { QueryMemoryDB },
+      { getMemoryDbPath, getMemoryStorePath },
+    ] = await Promise.all([
+      import('../config.js'),
+      import('../embedding/factory.js'),
+      import('../memory/history.js'),
+      import('../memory/store.js'),
+      import('../memory/query-memorydb.js'),
+      import('../paths.js'),
+    ]);
 
     const config = loadConfig();
     const embedding = createEmbedding(config);

@@ -58,14 +58,19 @@ async function main(): Promise<void> {
 
     // Store extracted query groups
     if (result.groups.length > 0) {
-      const [{ createEmbedding }, { MemoryHistory }, { MemoryStore }, { QueryMemoryDB }, { getMemoryDbPath, getMemoryStorePath }] =
-        await Promise.all([
-          import('../embedding/factory.js'),
-          import('./history.js'),
-          import('./store.js'),
-          import('./query-memorydb.js'),
-          import('../paths.js'),
-        ]);
+      const [
+        { createEmbedding },
+        { MemoryHistory },
+        { MemoryStore },
+        { QueryMemoryDB },
+        { getMemoryDbPath, getMemoryStorePath },
+      ] = await Promise.all([
+        import('../embedding/factory.js'),
+        import('./history.js'),
+        import('./store.js'),
+        import('./query-memorydb.js'),
+        import('../paths.js'),
+      ]);
 
       const embedding = createEmbedding(config);
       await embedding.initialize();
@@ -77,7 +82,12 @@ async function main(): Promise<void> {
       let totalFacts = 0;
       try {
         for (const group of result.groups) {
-          const action = await store.addQueryWithFacts(group.query, group.facts, sessionId, project);
+          const action = await store.addQueryWithFacts(
+            group.query,
+            group.facts,
+            sessionId,
+            project,
+          );
           totalFacts += action.factsAdded;
         }
       } finally {

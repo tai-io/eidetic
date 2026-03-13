@@ -100,8 +100,18 @@ describe('MemoryStore per-project scoping', () => {
 
   it('lists memories from specific project', async () => {
     await store.addQueryWithFacts('G1', [{ fact: 'Global fact', kind: 'fact' }], 's1', 'global');
-    await store.addQueryWithFacts('P1', [{ fact: 'Project fact', kind: 'fact' }], 's1', 'my-project');
-    await store.addQueryWithFacts('O1', [{ fact: 'Other project fact', kind: 'fact' }], 's1', 'other-project');
+    await store.addQueryWithFacts(
+      'P1',
+      [{ fact: 'Project fact', kind: 'fact' }],
+      's1',
+      'my-project',
+    );
+    await store.addQueryWithFacts(
+      'O1',
+      [{ fact: 'Other project fact', kind: 'fact' }],
+      's1',
+      'other-project',
+    );
 
     const results = store.listMemories(undefined, 50, 'my-project');
     const projects = results.map((g) => g.query.project);

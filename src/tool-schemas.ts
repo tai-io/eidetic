@@ -20,8 +20,7 @@ export const TOOL_DEFINITIONS = [
             properties: {
               fact: {
                 type: 'string',
-                description:
-                  'A concise, self-contained statement of developer knowledge.',
+                description: 'A concise, self-contained statement of developer knowledge.',
               },
               kind: {
                 type: 'string',
