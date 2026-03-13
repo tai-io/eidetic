@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ExtractedFact } from '../memory/types.js';
 
-const FLUSH_THRESHOLD = 20; // Matches buffer.ts — inlined to avoid pulling in better-sqlite3 at module load
+const FLUSH_THRESHOLD = 8; // Matches buffer.ts — inlined to avoid pulling in better-sqlite3 at module load
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

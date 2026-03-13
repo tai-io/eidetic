@@ -13,8 +13,8 @@ describe('MemoryBuffer', () => {
   });
 
   describe('FLUSH_THRESHOLD', () => {
-    it('is 20', () => {
-      expect(FLUSH_THRESHOLD).toBe(20);
+    it('is 8', () => {
+      expect(FLUSH_THRESHOLD).toBe(8);
     });
   });
 

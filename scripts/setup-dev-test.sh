@@ -79,8 +79,6 @@ WRAPPER
 make_wrapper       "session-start"      "hooks/session-start.sh"
 make_wrapper       "precompact"         "hooks/precompact-hook.sh"
 make_wrapper       "session-end"        "hooks/session-end-hook.sh"
-make_wrapper       "stop"              "hooks/stop-hook.sh"
-make_wrapper       "post-tool-write"   "hooks/post-tool-hook.sh"
 make_wrapper       "post-tool-extract" "hooks/post-tool-extract.sh"
 make_wrapper       "user-prompt-inject" "hooks/user-prompt-inject.sh"
 make_wrapper       "search-guidance"   "scripts/search-guidance.sh"
@@ -107,18 +105,11 @@ cat > "$TARGET/.claude/settings.json" <<EOF
     "SessionEnd": [
       { "hooks": [{ "type": "command", "command": "bash \"$W/session-end.sh\"", "timeout": 30 }] }
     ],
-    "Stop": [
-      { "hooks": [{ "type": "command", "command": "bash \"$W/stop.sh\"", "timeout": 15 }] }
-    ],
     "UserPromptSubmit": [
       { "hooks": [{ "type": "command", "command": "bash \"$W/search-guidance.sh\"", "timeout": 3 }] },
       { "hooks": [{ "type": "command", "command": "bash \"$W/user-prompt-inject.sh\"", "timeout": 4 }] }
     ],
     "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [{ "type": "command", "command": "bash \"$W/post-tool-write.sh\"", "timeout": 5 }]
-      },
       {
         "matcher": "WebFetch|Bash",
         "hooks": [{ "type": "command", "command": "bash \"$W/post-tool-extract.sh\"", "timeout": 10 }]

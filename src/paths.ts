@@ -31,6 +31,10 @@ export function getMemoryDbPath(): string {
   return `${getDataDir()}/memory-history.db`;
 }
 
+export function getMemoryStorePath(): string {
+  return `${getDataDir()}/memorystore.db`;
+}
+
 export function getBufferDbPath(): string {
   return `${getDataDir()}/buffer.db`;
 }

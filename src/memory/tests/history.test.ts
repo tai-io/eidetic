@@ -13,7 +13,7 @@ describe('MemoryHistory', () => {
   });
 
   it('logs and retrieves ADD events', () => {
-    history.log('mem-1', 'ADD', 'I prefer tabs', null, 'conversation', '2026-02-21T10:00:00Z');
+    history.log('mem-1', 'ADD', 'I prefer tabs', null, 'add', '2026-02-21T10:00:00Z');
 
     const entries = history.getHistory('mem-1');
     expect(entries).toHaveLength(1);
@@ -21,18 +21,18 @@ describe('MemoryHistory', () => {
     expect(entries[0].event).toBe('ADD');
     expect(entries[0].new_value).toBe('I prefer tabs');
     expect(entries[0].previous_value).toBeNull();
-    expect(entries[0].source).toBe('conversation');
+    expect(entries[0].source).toBe('add');
     expect(entries[0].created_at).toBeTruthy();
     expect(entries[0].updated_at).toBe('2026-02-21T10:00:00Z');
   });
 
-  it('logs UPDATE events with previous value', () => {
+  it('logs MERGE events with previous value', () => {
     history.log('mem-2', 'ADD', 'I use Vitest', null);
-    history.log('mem-2', 'UPDATE', 'I use Jest', 'I use Vitest');
+    history.log('mem-2', 'MERGE', 'I use Jest', 'I use Vitest');
 
     const entries = history.getHistory('mem-2');
     expect(entries).toHaveLength(2);
-    expect(entries[1].event).toBe('UPDATE');
+    expect(entries[1].event).toBe('MERGE');
     expect(entries[1].new_value).toBe('I use Jest');
     expect(entries[1].previous_value).toBe('I use Vitest');
   });
@@ -56,14 +56,14 @@ describe('MemoryHistory', () => {
 
   it('returns entries in chronological order', () => {
     history.log('mem-4', 'ADD', 'v1', null);
-    history.log('mem-4', 'UPDATE', 'v2', 'v1');
-    history.log('mem-4', 'UPDATE', 'v3', 'v2');
+    history.log('mem-4', 'MERGE', 'v2', 'v1');
+    history.log('mem-4', 'MERGE', 'v3', 'v2');
 
     const entries = history.getHistory('mem-4');
     expect(entries).toHaveLength(3);
     expect(entries[0].event).toBe('ADD');
-    expect(entries[1].event).toBe('UPDATE');
-    expect(entries[2].event).toBe('UPDATE');
+    expect(entries[1].event).toBe('MERGE');
+    expect(entries[2].event).toBe('MERGE');
     expect(entries[2].new_value).toBe('v3');
   });
 });

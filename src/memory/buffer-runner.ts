@@ -1,22 +1,21 @@
 #!/usr/bin/env node
 /**
- * Standalone script spawned as a detached child process to consolidate buffered facts.
+ * Standalone script spawned as a detached child process to extract memories from buffered items.
  *
  * Args: sessionId, project
  *
  * Flow:
- * 1. Check consolidation lock — exit if not set (another runner cleared it)
- * 2. Flush buffer → consolidate via LLM → store memories → add graph triples → clear buffer
- * 3. Clear consolidation lock on completion (or on error, so retries work)
- * 4. Also sweep stale items (>6 hours) from any session
+ * 1. Check extraction lock — exit if not set (another runner cleared it)
+ * 2. Sweep stale items (>24 hours) from any session
+ * 3. Flush buffer → extract via LLM → store query-grouped facts → clear buffer
+ * 4. Clear extraction lock on completion (or on error, so retries work)
  */
 
 import { MemoryBuffer } from './buffer.js';
-import { MemoryGraph } from './graph.js';
-import { consolidateBuffer } from './buffer-consolidator.js';
+import { extractMemories } from './memory-extractor.js';
 import { getBufferDbPath } from '../paths.js';
 
-const STALE_ITEM_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6 hours
+const STALE_ITEM_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 async function main(): Promise<void> {
   const sessionId = process.argv[2];
@@ -54,51 +53,48 @@ async function main(): Promise<void> {
     const { loadConfig } = await import('../config.js');
     const config = loadConfig();
 
-    // Consolidate via LLM
-    const result = await consolidateBuffer(items, config.openaiApiKey);
+    // Extract query-grouped facts via LLM
+    const result = await extractMemories(items, config.openaiApiKey);
 
-    // Store consolidated memories if any
-    if (result.memories.length > 0) {
-      const [{ createEmbedding }, { MemoryHistory }, { MemoryStore }, { getMemoryDbPath }] =
+    // Store extracted query groups
+    if (result.groups.length > 0) {
+      const [{ createEmbedding }, { MemoryHistory }, { MemoryStore }, { QueryMemoryDB }, { getMemoryDbPath, getMemoryStorePath }] =
         await Promise.all([
           import('../embedding/factory.js'),
           import('./history.js'),
           import('./store.js'),
+          import('./query-memorydb.js'),
           import('../paths.js'),
         ]);
 
       const embedding = createEmbedding(config);
       await embedding.initialize();
 
-      const { createVectorDB } = await import('../vectordb/factory.js');
-      const vectordb = await createVectorDB(config);
-
+      const memorydb = new QueryMemoryDB(getMemoryStorePath());
       const history = new MemoryHistory(getMemoryDbPath());
-      const store = new MemoryStore(embedding, vectordb, history);
+      const store = new MemoryStore(embedding, memorydb, history);
 
-      await store.addMemory(result.memories, 'buffer-consolidation', project);
+      let totalFacts = 0;
+      try {
+        for (const group of result.groups) {
+          const action = await store.addQueryWithFacts(group.query, group.facts, sessionId, project);
+          totalFacts += action.factsAdded;
+        }
+      } finally {
+        memorydb.close();
+        history.close();
+      }
 
       process.stderr.write(
-        `[eidetic] buffer-runner: stored ${result.memories.length} consolidated memories\n`,
+        `[eidetic] buffer-runner: stored ${result.groups.length} query groups (${totalFacts} facts)\n`,
       );
     }
 
-    // Store graph triples if any
-    if (result.graph.length > 0) {
-      const graph = new MemoryGraph(getBufferDbPath());
-      graph.addTriples(result.graph, project);
-      graph.persist();
-
-      process.stderr.write(
-        `[eidetic] buffer-runner: stored ${result.graph.length} graph triples\n`,
-      );
-    }
-
-    // Clear buffer after successful consolidation
+    // Clear buffer after successful extraction
     buffer.clear(sessionId);
 
     process.stderr.write(
-      `[eidetic] buffer-runner: consolidated ${items.length} items for session ${sessionId}\n`,
+      `[eidetic] buffer-runner: extracted ${items.length} items for session ${sessionId}\n`,
     );
   } catch (err) {
     process.stderr.write(`[eidetic] buffer-runner failed: ${String(err)}\n`);

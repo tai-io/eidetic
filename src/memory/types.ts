@@ -2,61 +2,74 @@ import type { MemoryKind } from './query-classifier.js';
 
 export type { MemoryKind };
 
+// --- Query-keyed memory model ---
+
+export interface QueryRecord {
+  id: string;
+  query_text: string;
+  query_vector: number[];
+  session_id: string;
+  project: string;
+  created_at: string;
+}
+
+export interface FactRecord {
+  id: string;
+  query_id: string;
+  fact_text: string;
+  kind: MemoryKind;
+  created_at: string;
+}
+
+export interface QueryWithFacts {
+  query: QueryRecord;
+  facts: FactRecord[];
+}
+
+export interface QuerySearchHit {
+  query: QueryRecord;
+  facts: FactRecord[];
+  score: number;
+}
+
+// --- Legacy MemoryItem (kept for format compatibility) ---
+
 export interface MemoryItem {
   id: string;
   memory: string;
-  hash: string;
   kind: MemoryKind;
   source: string;
   project: string;
-  access_count: number;
-  last_accessed: string;
-  supersedes: string | null;
-  superseded_by: string | null;
-  valid_at: string;
   created_at: string;
-  updated_at: string;
 }
 
-export type MemoryEvent = 'ADD' | 'UPDATE' | 'DELETE' | 'SUPERSEDE';
+export type MemoryEvent = 'ADD' | 'MERGE' | 'DELETE';
 
 export interface MemoryAction {
   event: MemoryEvent;
-  id: string;
-  memory: string;
-  previous?: string;
-  kind?: MemoryKind;
-  source?: string;
+  queryId: string;
+  query: string;
+  factsAdded: number;
   project?: string;
-  supersedes?: string;
+  mergedInto?: string;
 }
 
-export interface ReconcileResult {
-  action: 'ADD' | 'UPDATE' | 'NONE' | 'SUPERSEDE';
-  existingId?: string;
-  existingMemory?: string;
-}
+// --- Extraction types (replaces ConsolidationResult) ---
 
 export interface ExtractedFact {
   fact: string;
   kind: MemoryKind;
-  project?: string;
-  valid_at?: string;
 }
 
-/**
- * @deprecated Use ExtractedFact with `kind` instead. Kept for migration compatibility.
- */
-export interface LegacyExtractedFact {
-  fact: string;
-  category: string;
-  project?: string;
+export interface ExtractionGroup {
+  query: string;
+  facts: ExtractedFact[];
 }
 
-/**
- * Typed shape of memory payloads stored in VectorDB.
- * Used to safely cast `Record<string, unknown>` from VectorDB.getById().
- */
+export interface ExtractionResult {
+  groups: ExtractionGroup[];
+}
+
 // --- Buffer types ---
 
 export interface BufferItem {
@@ -67,92 +80,4 @@ export interface BufferItem {
   tool_name: string | null;
   project: string;
   captured_at: string;
-}
-
-// --- Graph types ---
-
-export type NodeType =
-  | 'file'
-  | 'function'
-  | 'class'
-  | 'module'
-  | 'decision'
-  | 'convention'
-  | 'constraint'
-  | 'project';
-
-export type RelationType =
-  | 'imports'
-  | 'calls'
-  | 'depends_on'
-  | 'contains'
-  | 'motivates'
-  | 'contradicts'
-  | 'supersedes'
-  | 'applies_to'
-  | 'related_to';
-
-export interface GraphNode {
-  id: string;
-  name: string;
-  type: NodeType;
-  project: string;
-  metadata?: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface GraphEdge {
-  id: string;
-  sourceId: string;
-  targetId: string;
-  relationship: RelationType;
-  project: string;
-  metadata?: Record<string, unknown>;
-  created_at: string;
-}
-
-export interface GraphTriple {
-  source: { name: string; type: NodeType };
-  relationship: RelationType;
-  target: { name: string; type: NodeType };
-}
-
-export interface GraphRelation {
-  source: string;
-  relationship: string;
-  target: string;
-}
-
-export interface MemorySearchResult {
-  memories: MemoryItem[];
-  relations?: GraphRelation[];
-}
-
-// --- Consolidation output ---
-
-export interface ConsolidationResult {
-  memories: ExtractedFact[];
-  graph: GraphTriple[];
-}
-
-// --- VectorDB payload ---
-
-export interface MemoryPayload {
-  content?: string;
-  memory?: string;
-  hash?: string;
-  kind?: string;
-  source?: string;
-  project?: string;
-  language?: string;
-  fileExtension?: string;
-  category?: string;
-  access_count?: number;
-  last_accessed?: string;
-  supersedes?: string | null;
-  superseded_by?: string | null;
-  valid_at?: string;
-  created_at?: string;
-  updated_at?: string;
 }

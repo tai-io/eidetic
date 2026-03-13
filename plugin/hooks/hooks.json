@@ -36,33 +36,12 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-hook.sh\"",
-            "timeout": 5
-          }
-        ]
-      },
-      {
         "matcher": "WebFetch|Bash",
         "hooks": [
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-extract.sh\"",
             "timeout": 10
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-hook.sh\"",
-            "timeout": 15
           }
         ]
       }

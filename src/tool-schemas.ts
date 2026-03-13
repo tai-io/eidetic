@@ -2,21 +2,26 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'add_memory',
     description:
-      'Store pre-extracted developer knowledge facts. Before calling, extract facts yourself from the relevant content. Each fact should be a concise, self-contained statement classified by kind: fact (verifiable info), decision (rationale), convention (patterns), constraint (hard limits), or intent (planned). Automatically deduplicates against existing memories.',
+      'Store developer knowledge as a query with associated facts. The query is the user intent or question that prompted learning these facts. Facts are grouped under the query and automatically deduplicated against existing memories (queries with cosine similarity ≥ 0.92 are merged).',
     inputSchema: {
       type: 'object' as const,
       properties: {
+        query: {
+          type: 'string',
+          description:
+            'The user question or intent that prompted these facts (e.g., "How does auth work in this project?"). This becomes the search key.',
+        },
         facts: {
           type: 'array',
           description:
-            'Array of facts to store. Extract these yourself before calling. Each fact must be a concise, self-contained statement.',
+            'Array of facts learned while addressing the query. Each fact must be a concise, self-contained statement.',
           items: {
             type: 'object',
             properties: {
               fact: {
                 type: 'string',
                 description:
-                  'A concise, self-contained statement of a developer preference or convention.',
+                  'A concise, self-contained statement of developer knowledge.',
               },
               kind: {
                 type: 'string',
@@ -24,19 +29,9 @@ export const TOOL_DEFINITIONS = [
                   'Memory kind: fact (verifiable info), decision (rationale-bearing), convention (patterns/rules), constraint (hard limits), or intent (planned/future).',
                 enum: ['fact', 'decision', 'convention', 'constraint', 'intent'],
               },
-              valid_at: {
-                type: 'string',
-                description:
-                  'ISO timestamp for when this fact was true (e.g., when a decision was made). Defaults to now if not provided.',
-              },
             },
             required: ['fact', 'kind'],
           },
-        },
-        source: {
-          type: 'string',
-          description:
-            'Optional source identifier (e.g., "conversation", "claude-code", "user-note").',
         },
         project: {
           type: 'string',
@@ -44,7 +39,7 @@ export const TOOL_DEFINITIONS = [
             'Optional project name to scope this memory (e.g., "my-app"). Defaults to "global" for cross-project memories.',
         },
       },
-      required: ['facts'],
+      required: ['query', 'facts'],
     },
   },
   {
@@ -106,13 +101,13 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: 'delete_memory',
-    description: 'Delete a specific memory by its ID.',
+    description: 'Delete a memory query group and all its associated facts by query ID.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         id: {
           type: 'string',
-          description: 'The UUID of the memory to delete.',
+          description: 'The UUID of the query group to delete (cascades to all associated facts).',
         },
       },
       required: ['id'],
@@ -130,30 +125,6 @@ export const TOOL_DEFINITIONS = [
         },
       },
       required: ['id'],
-    },
-  },
-  {
-    name: 'browse_graph',
-    description:
-      'Explore the knowledge graph of entity relationships extracted from memory consolidation.\nShows how code entities (files, functions, classes) and knowledge entities (decisions, conventions) relate to each other.\n\nOptionally filter by entity name, type, or project.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        entity: {
-          type: 'string',
-          description: 'Entity name to explore (e.g., "auth.ts", "validateJWT").',
-        },
-        type: {
-          type: 'string',
-          description:
-            'Filter by node type: file, function, class, module, decision, convention, constraint, project.',
-        },
-        project: {
-          type: 'string',
-          description: 'Filter by project name.',
-        },
-      },
-      required: [],
     },
   },
   {

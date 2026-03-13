@@ -24,6 +24,7 @@ const configSchema = z
       z.boolean().default(true),
     ),
     raptorTimeoutMs: z.coerce.number().int().min(1000).default(60000),
+    extractionModel: z.string().default('gpt-4o-mini'),
   })
   .transform((cfg) => ({
     ...cfg,
@@ -57,6 +58,7 @@ export function loadConfig(): Config {
     eideticDataDir: process.env.EIDETIC_DATA_DIR,
     raptorEnabled: process.env.RAPTOR_ENABLED,
     raptorTimeoutMs: process.env.RAPTOR_TIMEOUT_MS,
+    extractionModel: process.env.EXTRACTION_MODEL?.trim() ?? undefined,
   };
 
   const result = configSchema.safeParse(raw);

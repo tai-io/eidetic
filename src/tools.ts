@@ -8,7 +8,7 @@ import {
   textResult,
   formatMemoryActions,
   formatMemorySearchResults,
-  formatMemoryList,
+  formatQueryGroupList,
   formatMemoryHistory,
 } from './format.js';
 import type { MemoryStore } from './memory/store.js';
@@ -43,7 +43,6 @@ function noPathError(): { content: { type: string; text: string }[] } {
 
 export class ToolHandlers {
   private memoryStore: MemoryStore | null = null;
-  private memoryGraph: import('./memory/graph.js').MemoryGraph | null = null;
 
   constructor(
     private embedding: Embedding,
@@ -54,30 +53,26 @@ export class ToolHandlers {
     this.memoryStore = store;
   }
 
-  setMemoryGraph(graph: import('./memory/graph.js').MemoryGraph): void {
-    this.memoryGraph = graph;
-    if (this.memoryStore) {
-      this.memoryStore.setGraph(graph);
-    }
-  }
-
   async handleAddMemory(
     args: Record<string, unknown>,
   ): Promise<{ content: { type: string; text: string }[] }> {
     if (!this.memoryStore) return textResult('Error: Memory system not initialized.');
 
-    const facts = args.facts as { fact: string; kind: MemoryKind; valid_at?: string }[] | undefined;
+    const query = args.query as string | undefined;
+    if (!query)
+      return textResult('Error: "query" is required. Provide the user question or intent.');
+
+    const facts = args.facts as { fact: string; kind: MemoryKind }[] | undefined;
     if (!facts || !Array.isArray(facts) || facts.length === 0)
       return textResult(
-        'Error: "facts" is required. Provide an array of pre-extracted facts with fact and kind fields.',
+        'Error: "facts" is required. Provide an array of facts with fact and kind fields.',
       );
 
-    const source = args.source as string | undefined;
     const project = args.project as string | undefined;
 
     try {
-      const actions = await this.memoryStore.addMemory(facts, source, project);
-      return textResult(formatMemoryActions(actions));
+      const action = await this.memoryStore.addQueryWithFacts(query, facts, 'mcp-tool', project);
+      return textResult(formatMemoryActions([action]));
     } catch (err) {
       const message = getErrorMessage(err);
       return textResult(`Error adding memory: ${message}`);
@@ -98,21 +93,15 @@ export class ToolHandlers {
     const project = args.project as string | undefined;
 
     try {
-      const result = await this.memoryStore.searchMemoryWithGraph(query, limit, kind, project);
-      let output = formatMemorySearchResults(result.memories, query);
-      if (result.relations && result.relations.length > 0) {
-        output += '\n\n## Related Entities\n';
-        for (const rel of result.relations) {
-          output += `- ${rel.source} —[${rel.relationship}]→ ${rel.target}\n`;
-        }
-      }
-      return textResult(output);
+      const results = await this.memoryStore.searchMemory(query, limit, kind, project);
+      return textResult(formatMemorySearchResults(results, query));
     } catch (err) {
       const message = getErrorMessage(err);
       return textResult(`Error searching memories: ${message}`);
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async handleListMemories(
     args: Record<string, unknown>,
   ): Promise<{ content: { type: string; text: string }[] }> {
@@ -123,14 +112,15 @@ export class ToolHandlers {
     const project = args.project as string | undefined;
 
     try {
-      const results = await this.memoryStore.listMemories(kind, limit, project);
-      return textResult(formatMemoryList(results));
+      const results = this.memoryStore.listMemories(kind, limit, project);
+      return textResult(formatQueryGroupList(results));
     } catch (err) {
       const message = getErrorMessage(err);
       return textResult(`Error listing memories: ${message}`);
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async handleDeleteMemory(
     args: Record<string, unknown>,
   ): Promise<{ content: { type: string; text: string }[] }> {
@@ -141,7 +131,7 @@ export class ToolHandlers {
       return textResult('Error: "id" is required. Provide the UUID of the memory to delete.');
 
     try {
-      const deleted = await this.memoryStore.deleteMemory(id);
+      const deleted = this.memoryStore.deleteMemory(id);
       if (!deleted) return textResult(`Memory not found: ${id}`);
       return textResult(`Memory deleted: ${id}`);
     } catch (err) {
@@ -169,73 +159,6 @@ export class ToolHandlers {
       const message = getErrorMessage(err);
       return textResult(`Error retrieving memory history: ${message}`);
     }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async handleBrowseGraph(
-    args: Record<string, unknown>,
-  ): Promise<{ content: { type: string; text: string }[] }> {
-    if (!this.memoryGraph) {
-      return textResult('Knowledge graph not initialized. No graph data available yet.');
-    }
-
-    const entity = args.entity as string | undefined;
-    const typeFilter = args.type as string | undefined;
-    const projectFilter = args.project as string | undefined;
-
-    if (entity) {
-      const node = this.memoryGraph.findNode(
-        entity,
-        typeFilter as import('./memory/types.js').NodeType | undefined,
-        projectFilter,
-      );
-      if (!node) return textResult(`No entity found: "${entity}"`);
-
-      const related = this.memoryGraph.getRelated(entity);
-      let output = `## ${node.name} (${node.type})\n`;
-      output += `Project: ${node.project}\n\n`;
-
-      if (related.edges.length > 0) {
-        output += '### Relationships\n';
-        for (const edge of related.edges) {
-          const source = related.nodes.find((n) => n.id === edge.sourceId);
-          const target = related.nodes.find((n) => n.id === edge.targetId);
-          if (source && target) {
-            output += `- ${source.name} —[${edge.relationship}]→ ${target.name}\n`;
-          }
-        }
-      } else {
-        output += 'No relationships found.\n';
-      }
-
-      return textResult(output);
-    }
-
-    // No entity specified — show summary
-    const json = this.memoryGraph.toJSON();
-    let nodes = json.nodes;
-    if (typeFilter) nodes = nodes.filter((n) => n.type === typeFilter);
-    if (projectFilter) nodes = nodes.filter((n) => n.project === projectFilter);
-
-    let output = `## Knowledge Graph Summary\n`;
-    output += `Nodes: ${json.nodes.length} | Edges: ${json.edges.length}\n\n`;
-
-    // Group by type
-    const byType = new Map<string, string[]>();
-    for (const node of nodes) {
-      const list = byType.get(node.type) ?? [];
-      list.push(node.name);
-      byType.set(node.type, list);
-    }
-
-    for (const [type, names] of byType) {
-      output += `### ${type} (${names.length})\n`;
-      output += names.slice(0, 20).join(', ');
-      if (names.length > 20) output += `, ... (+${names.length - 20} more)`;
-      output += '\n\n';
-    }
-
-    return textResult(output);
   }
 
   async handleRaptorCluster(

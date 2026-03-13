@@ -21,6 +21,7 @@ function makeConfig(overrides: Partial<Config> = {}): Config {
     eideticDataDir: '/tmp/eidetic-test',
     raptorEnabled: true,
     raptorTimeoutMs: 60000,
+    extractionModel: 'gpt-4o-mini',
     ...overrides,
   };
 }

@@ -1,51 +1,57 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MemoryStore } from '../store.js';
 import { MemoryHistory } from '../history.js';
+import { QueryMemoryDB } from '../query-memorydb.js';
 import { MockEmbedding } from '../../__tests__/mock-embedding.js';
-import { MockVectorDB } from '../../__tests__/mock-vectordb.js';
 import { join } from 'node:path';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
-describe('MemoryStore per-project collections', () => {
+describe('MemoryStore per-project scoping', () => {
   let embedding: MockEmbedding;
-  let vectordb: MockVectorDB;
+  let memorydb: QueryMemoryDB;
   let history: MemoryHistory;
   let store: MemoryStore;
   let tmpDir: string;
 
   beforeEach(() => {
     embedding = new MockEmbedding(32);
-    vectordb = new MockVectorDB();
     tmpDir = mkdtempSync(join(tmpdir(), 'eidetic-test-'));
-    history = new MemoryHistory(join(tmpDir, 'test.db'));
-    store = new MemoryStore(embedding, vectordb, history);
+    memorydb = new QueryMemoryDB(join(tmpDir, 'memory.db'));
+    history = new MemoryHistory(join(tmpDir, 'history.db'));
+    store = new MemoryStore(embedding, memorydb, history);
   });
 
-  it('stores global memories in eidetic_global_memory collection', async () => {
-    await store.addMemory([{ fact: 'Global fact', kind: 'fact' }]);
-
-    // Verify collection name used
-    const hasGlobal = await vectordb.hasCollection('eidetic_global_memory');
-    expect(hasGlobal).toBe(true);
+  it('stores global memories with project=global', async () => {
+    const action = await store.addQueryWithFacts(
+      'Global fact query',
+      [{ fact: 'Global fact', kind: 'fact' }],
+      'session-1',
+    );
+    expect(action.project).toBe('global');
   });
 
-  it('stores project memories in eidetic_<project>_memory collection', async () => {
-    await store.addMemory([{ fact: 'Project fact', kind: 'fact' }], 'test', 'my-project');
-
-    const hasProject = await vectordb.hasCollection('eidetic_my-project_memory');
-    expect(hasProject).toBe(true);
+  it('stores project-scoped memories', async () => {
+    const action = await store.addQueryWithFacts(
+      'Project fact query',
+      [{ fact: 'Project fact', kind: 'fact' }],
+      'session-1',
+      'my-project',
+    );
+    expect(action.project).toBe('my-project');
   });
 
-  it('searches both project and global collections', async () => {
-    await store.addMemory(
+  it('searches both project and global queries', async () => {
+    await store.addQueryWithFacts(
+      'Global TypeScript convention',
       [{ fact: 'Global TypeScript convention', kind: 'convention' }],
-      'test',
+      'session-1',
       'global',
     );
-    await store.addMemory(
+    await store.addQueryWithFacts(
+      'Project TypeScript config',
       [{ fact: 'Project TypeScript config', kind: 'convention' }],
-      'test',
+      'session-1',
       'my-project',
     );
 
@@ -56,80 +62,50 @@ describe('MemoryStore per-project collections', () => {
     expect(projects).toContain('global');
   });
 
-  it('applies query-classified weighting in search results', async () => {
-    // Add a constraint and a fact about the same topic
-    await store.addMemory(
-      [{ fact: 'Must work offline - hard requirement', kind: 'constraint' }],
-      'test',
-      'my-project',
+  it('ranks project-matching memories first via 1.5x boost', async () => {
+    await store.addQueryWithFacts(
+      'Global TypeScript info',
+      [{ fact: 'Global TypeScript fact', kind: 'convention' }],
+      'session-1',
+      'global',
     );
-    await store.addMemory(
-      [{ fact: 'Currently works offline via service worker', kind: 'fact' }],
-      'test',
-      'my-project',
-    );
-
-    // Feasibility query should boost constraints
-    const results = await store.searchMemory(
-      'can I remove offline support?',
-      10,
-      undefined,
+    await store.addQueryWithFacts(
+      'Project TypeScript info',
+      [{ fact: 'Project-specific TypeScript config', kind: 'convention' }],
+      'session-1',
       'my-project',
     );
 
-    // Both should appear, constraint should rank first due to feasibility profile
-    expect(results.length).toBeGreaterThanOrEqual(2);
-    const constraintIdx = results.findIndex((m) => m.kind === 'constraint');
-    const factIdx = results.findIndex((m) => m.kind === 'fact');
-    if (constraintIdx >= 0 && factIdx >= 0) {
-      expect(constraintIdx).toBeLessThan(factIdx);
-    }
+    const results = await store.searchMemory('TypeScript', 10, undefined, 'my-project');
+
+    const projectIdx = results.findIndex((m) => m.project === 'my-project');
+    const globalIdx = results.findIndex((m) => m.project === 'global');
+
+    expect(projectIdx).toBeGreaterThanOrEqual(0);
+    expect(globalIdx).toBeGreaterThanOrEqual(0);
+    expect(projectIdx).toBeLessThan(globalIdx);
   });
 
-  it('filters out superseded entries from search results', async () => {
-    // Add a memory then supersede it
-    const actions1 = await store.addMemory(
-      [{ fact: 'Using SQLite for storage', kind: 'decision' }],
-      'test',
-      'my-project',
-    );
-    const oldId = actions1[0].id;
-
-    // Manually mark it as superseded via the vectordb
-    const point = await vectordb.getById('eidetic_my-project_memory', oldId);
-    if (point) {
-      await vectordb.updatePoint('eidetic_my-project_memory', oldId, point.vector, {
-        ...point.payload,
-        superseded_by: 'new-id',
-      });
-    }
-
-    const results = await store.searchMemory('storage', 10, undefined, 'my-project');
-    const superseded = results.find((m) => m.id === oldId);
-    expect(superseded).toBeUndefined();
-  });
-
-  it('deletes memory from correct project collection', async () => {
-    const actions = await store.addMemory(
+  it('deletes memory by query ID', async () => {
+    const action = await store.addQueryWithFacts(
+      'To be deleted',
       [{ fact: 'To be deleted', kind: 'fact' }],
-      'test',
+      'session-1',
       'my-project',
     );
-    const id = actions[0].id;
 
-    const deleted = await store.deleteMemory(id, 'my-project');
+    const deleted = store.deleteMemory(action.queryId);
     expect(deleted).toBe(true);
   });
 
-  it('lists memories from specific project collection', async () => {
-    await store.addMemory([{ fact: 'Global fact', kind: 'fact' }], 'test', 'global');
-    await store.addMemory([{ fact: 'Project fact', kind: 'fact' }], 'test', 'my-project');
-    await store.addMemory([{ fact: 'Other project fact', kind: 'fact' }], 'test', 'other-project');
+  it('lists memories from specific project', async () => {
+    await store.addQueryWithFacts('G1', [{ fact: 'Global fact', kind: 'fact' }], 's1', 'global');
+    await store.addQueryWithFacts('P1', [{ fact: 'Project fact', kind: 'fact' }], 's1', 'my-project');
+    await store.addQueryWithFacts('O1', [{ fact: 'Other project fact', kind: 'fact' }], 's1', 'other-project');
 
-    const results = await store.listMemories(undefined, 50, 'my-project');
-    const projects = results.map((m) => m.project);
+    const results = store.listMemories(undefined, 50, 'my-project');
+    const projects = results.map((g) => g.query.project);
     expect(projects).toContain('my-project');
-    expect(projects).toContain('global');
     expect(projects).not.toContain('other-project');
   });
 });

@@ -78,4 +78,19 @@ describe('loadConfig', () => {
     const config = loadConfig();
     expect(config.vectordbProvider).toBe('milvus');
   });
+
+  it('defaults extractionModel to gpt-4o-mini', async () => {
+    vi.stubEnv('OPENAI_API_KEY', 'sk-test');
+    const loadConfig = await freshLoadConfig();
+    const config = loadConfig();
+    expect(config.extractionModel).toBe('gpt-4o-mini');
+  });
+
+  it('overrides extractionModel from EXTRACTION_MODEL env var', async () => {
+    vi.stubEnv('OPENAI_API_KEY', 'sk-test');
+    vi.stubEnv('EXTRACTION_MODEL', 'gpt-4.1-nano');
+    const loadConfig = await freshLoadConfig();
+    const config = loadConfig();
+    expect(config.extractionModel).toBe('gpt-4.1-nano');
+  });
 });

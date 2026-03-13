@@ -1,90 +1,135 @@
+/**
+ * Query-keyed MemoryStore.
+ *
+ * Stores memories as query→facts groups. Each user query is embedded once;
+ * facts are plain text grouped under their query. Dedup is done by cosine
+ * similarity on query vectors (≥0.92 = merge facts into existing group).
+ */
+
 import { randomUUID } from 'node:crypto';
 import type { Embedding } from '../embedding/types.js';
-import type { VectorDB } from '../vectordb/types.js';
 import type {
-  MemoryItem,
   MemoryAction,
   ExtractedFact,
-  MemoryKind,
-  MemoryPayload,
-  GraphRelation,
-  MemorySearchResult,
+  QuerySearchHit,
+  QueryWithFacts,
+  MemoryItem,
 } from './types.js';
-import type { MemoryGraph } from './graph.js';
+import { QueryMemoryDB } from './query-memorydb.js';
 import { MemoryHistory } from './history.js';
-import { hashMemory, reconcile, type ExistingMatch } from './reconciler.js';
-import {
-  classifyQuery,
-  getWeightProfile,
-  applyKindWeighting,
-  applyRecencyDecay,
-} from './query-classifier.js';
-import { globalConceptsCollectionName } from '../paths.js';
 
-const SEARCH_CANDIDATES = 5;
-const ACCESS_BUMP_COUNT = 5;
-
-function collectionName(project: string): string {
-  return `eidetic_${project}_memory`;
-}
+const DEDUP_THRESHOLD = 0.92;
 
 export class MemoryStore {
-  private initializedCollections = new Set<string>();
-  private initPromises = new Map<string, Promise<string>>();
-  private graph?: MemoryGraph;
-
   constructor(
     private embedding: Embedding,
-    private vectordb: VectorDB,
+    private memorydb: QueryMemoryDB,
     private history: MemoryHistory,
   ) {}
 
-  setGraph(graph: MemoryGraph): void {
-    this.graph = graph;
-  }
-
-  private async ensureCollection(project: string): Promise<string> {
-    const name = collectionName(project);
-    if (this.initializedCollections.has(name)) return name;
-
-    const existing = this.initPromises.get(name);
-    if (existing) return existing;
-
-    const promise = (async () => {
-      const exists = await this.vectordb.hasCollection(name);
-      if (!exists) {
-        await this.vectordb.createCollection(name, this.embedding.dimension);
-      }
-      this.initializedCollections.add(name);
-      this.initPromises.delete(name);
-      return name;
-    })();
-
-    this.initPromises.set(name, promise);
-    return promise;
-  }
-
-  async addMemory(
+  /**
+   * Add a query with its extracted facts.
+   * If a semantically similar query exists (cosine ≥ 0.92), merge facts into it.
+   */
+  async addQueryWithFacts(
+    queryText: string,
     facts: ExtractedFact[],
-    source?: string,
+    sessionId: string,
     project = 'global',
-  ): Promise<MemoryAction[]> {
-    await this.ensureCollection(project);
-
-    if (facts.length === 0) return [];
-
-    const actions: MemoryAction[] = [];
-
-    for (const fact of facts) {
-      const effectiveProject = fact.project ?? project;
-      await this.ensureCollection(effectiveProject);
-      const action = await this.processFact(fact, source, effectiveProject);
-      if (action) actions.push(action);
+  ): Promise<MemoryAction> {
+    if (facts.length === 0) {
+      return { event: 'ADD', queryId: '', query: queryText, factsAdded: 0, project };
     }
 
-    return actions;
+    const queryVector = await this.embedding.embed(queryText);
+    const now = new Date().toISOString();
+
+    // Check for duplicate query (cosine similarity ≥ threshold)
+    const existing = this.memorydb.findSimilarQuery(queryVector, project, DEDUP_THRESHOLD);
+
+    if (existing) {
+      // Merge: add only facts that aren't already present (text dedup)
+      const existingFacts = this.memorydb.getFactsForQuery(existing.query.id);
+      const existingTexts = new Set(existingFacts.map((f) => f.fact_text.toLowerCase().trim()));
+
+      const newFacts = facts
+        .filter((f) => !existingTexts.has(f.fact.toLowerCase().trim()))
+        .map((f) => ({
+          id: randomUUID(),
+          fact_text: f.fact,
+          kind: f.kind,
+          created_at: now,
+        }));
+
+      if (newFacts.length > 0) {
+        this.memorydb.addFactsToQuery(existing.query.id, newFacts);
+        this.history.log(existing.query.id, 'MERGE', queryText, existing.query.query_text, 'merge', now);
+      }
+
+      return {
+        event: 'MERGE',
+        queryId: existing.query.id,
+        query: existing.query.query_text,
+        factsAdded: newFacts.length,
+        project,
+        mergedInto: existing.query.id,
+      };
+    }
+
+    // New query group
+    const queryId = randomUUID();
+    const factRecords = facts.map((f) => ({
+      id: randomUUID(),
+      fact_text: f.fact,
+      kind: f.kind,
+      created_at: now,
+    }));
+
+    this.memorydb.addQueryWithFacts(
+      {
+        id: queryId,
+        query_text: queryText,
+        query_vector: queryVector,
+        session_id: sessionId,
+        project,
+        created_at: now,
+      },
+      factRecords,
+    );
+
+    this.history.log(queryId, 'ADD', queryText, null, 'add', now);
+
+    return {
+      event: 'ADD',
+      queryId,
+      query: queryText,
+      factsAdded: facts.length,
+      project,
+    };
   }
 
+  /**
+   * Legacy addMemory interface — wraps addQueryWithFacts for backward compatibility.
+   * The first fact's text is used as the query text.
+   * `source` is used as session identifier for provenance tracking.
+   */
+  async addMemory(
+    facts: ExtractedFact[],
+    sessionId?: string,
+    project = 'global',
+  ): Promise<MemoryAction[]> {
+    if (facts.length === 0) return [];
+
+    // Group all facts under a synthetic query derived from the first fact
+    const queryText = facts[0].fact;
+    const action = await this.addQueryWithFacts(queryText, facts, sessionId ?? 'unknown', project);
+    return [action];
+  }
+
+  /**
+   * Search memories by embedding the query and finding similar stored queries.
+   * Returns flattened MemoryItem[] for backward compatibility.
+   */
   async searchMemory(
     query: string,
     limit = 10,
@@ -92,430 +137,110 @@ export class MemoryStore {
     project?: string,
   ): Promise<MemoryItem[]> {
     const queryVector = await this.embedding.embed(query);
-    const profile = classifyQuery(query);
-    const weights = getWeightProfile(profile);
 
-    const searchOpts = {
-      queryVector,
-      queryText: query,
-      limit: limit * 2,
-      ...(kind ? { extensionFilter: [kind] } : {}),
-    };
+    // Search project-specific queries first, then global
+    const hits: QuerySearchHit[] = [];
 
-    // Determine which collections to search
-    const collections: string[] = [];
     if (project && project !== 'global') {
-      const projCol = collectionName(project);
-      if (await this.vectordb.hasCollection(projCol)) {
-        collections.push(projCol);
+      const projectHits = this.memorydb.searchByQuery(queryVector, project, limit);
+      // Apply project boost
+      for (const hit of projectHits) {
+        hit.score *= 1.5;
       }
-    }
-    const globalCol = collectionName('global');
-    if (await this.vectordb.hasCollection(globalCol)) {
-      collections.push(globalCol);
+      hits.push(...projectHits);
     }
 
-    // Also search global concepts for broader context
-    const conceptsCol = globalConceptsCollectionName();
-    const searchConcepts = await this.vectordb.hasCollection(conceptsCol);
+    const globalHits = this.memorydb.searchByQuery(queryVector, 'global', limit);
+    hits.push(...globalHits);
 
-    if (collections.length === 0 && !searchConcepts) return [];
+    // Sort by score descending, dedup by query id
+    const seen = new Set<string>();
+    const sorted = hits
+      .filter((h) => {
+        if (seen.has(h.query.id)) return false;
+        seen.add(h.query.id);
+        return true;
+      })
+      .sort((a, b) => b.score - a.score);
 
-    // Search all relevant collections in parallel
-    const allResults = await Promise.all(
-      collections.map(async (col) => {
-        const results = await this.vectordb.search(col, searchOpts);
-        const items: { item: MemoryItem; score: number }[] = [];
-        for (const r of results) {
-          const id = r.relativePath;
-          const point = await this.vectordb.getById(col, id);
-          if (!point) continue;
-          const item = payloadToMemoryItem(id, point.payload);
-          // Filter out superseded entries
-          if (item.superseded_by) continue;
-          items.push({ item, score: r.score });
-        }
-        return items;
-      }),
-    );
-
-    // Search global concepts with reduced weight
-    if (searchConcepts) {
-      const conceptResults = await this.vectordb.search(conceptsCol, searchOpts);
-      for (const r of conceptResults) {
-        const id = r.relativePath;
-        const point = await this.vectordb.getById(conceptsCol, id);
-        if (!point) continue;
-        const item = payloadToMemoryItem(id, point.payload);
-        allResults.push([{ item, score: r.score * 0.8 }]);
+    // Flatten to MemoryItem[], filtering by kind if requested
+    const items: MemoryItem[] = [];
+    for (const hit of sorted) {
+      for (const fact of hit.facts) {
+        if (kind && fact.kind !== kind) continue;
+        items.push({
+          id: fact.id,
+          memory: fact.fact_text,
+          kind: fact.kind,
+          source: hit.query.query_text,
+          project: hit.query.project,
+          created_at: fact.created_at,
+        });
+        if (items.length >= limit) break;
       }
+      if (items.length >= limit) break;
     }
 
-    // Flatten and apply kind weighting + recency decay
-    const scored = allResults.flat().map(({ item, score }) => {
-      let finalScore = applyKindWeighting(score, item.kind, weights);
-      finalScore = applyRecencyDecay(finalScore, item.kind, item.valid_at);
-
-      // Project boost: project-specific memories rank above global
-      if (project && item.project === project) {
-        finalScore *= 1.5;
-      }
-
-      return { item, score: finalScore };
-    });
-
-    // Sort by final score descending
-    scored.sort((a, b) => b.score - a.score);
-
-    const ranked = scored.slice(0, limit).map((s) => s.item);
-
-    // Fire-and-forget: bump access_count for top results
-    const topItems = ranked.slice(0, ACCESS_BUMP_COUNT);
-    void this.bumpAccessCounts(topItems);
-
-    return ranked;
+    return items;
   }
 
   /**
-   * Search memory and enrich with graph relations from top results.
-   * Returns both memories and any related entity relationships.
+   * Search and return raw query hits (for tools that want grouped output).
    */
-  async searchMemoryWithGraph(
+  async searchQueryHits(
     query: string,
     limit = 10,
-    kind?: string,
     project?: string,
-  ): Promise<MemorySearchResult> {
-    const memories = await this.searchMemory(query, limit, kind, project);
-    const relations = this.getGraphRelations(memories);
-    return { memories, relations: relations.length > 0 ? relations : undefined };
-  }
+  ): Promise<QuerySearchHit[]> {
+    const queryVector = await this.embedding.embed(query);
 
-  private getGraphRelations(memories: MemoryItem[]): GraphRelation[] {
-    if (!this.graph) return [];
+    const hits: QuerySearchHit[] = [];
 
-    const relations: GraphRelation[] = [];
+    if (project && project !== 'global') {
+      const projectHits = this.memorydb.searchByQuery(queryVector, project, limit);
+      for (const hit of projectHits) {
+        hit.score *= 1.5;
+      }
+      hits.push(...projectHits);
+    }
+
+    const globalHits = this.memorydb.searchByQuery(queryVector, 'global', limit);
+    hits.push(...globalHits);
+
     const seen = new Set<string>();
-
-    for (const mem of memories.slice(0, 5)) {
-      // Extract potential entity names from memory text (words that look like identifiers)
-      const words = mem.memory.split(/[\s,.:;()[\]{}'"]+/).filter((w) => w.length > 2);
-      for (const word of words) {
-        const node = this.graph.findNode(word);
-        if (!node) continue;
-
-        const related = this.graph.getRelated(word);
-        for (const edge of related.edges) {
-          const sourceNode = related.nodes.find((n) => n.id === edge.sourceId);
-          const targetNode = related.nodes.find((n) => n.id === edge.targetId);
-          if (!sourceNode || !targetNode) continue;
-
-          const key = `${sourceNode.name}|${edge.relationship}|${targetNode.name}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-
-          relations.push({
-            source: sourceNode.name,
-            relationship: edge.relationship,
-            target: targetNode.name,
-          });
-        }
-      }
-    }
-
-    return relations;
+    return hits
+      .filter((h) => {
+        if (seen.has(h.query.id)) return false;
+        seen.add(h.query.id);
+        return true;
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
   }
 
-  async listMemories(kind?: string, limit = 50, project?: string): Promise<MemoryItem[]> {
-    const queryVector = await this.embedding.embed('developer knowledge');
-    const searchOpts = {
-      queryVector,
-      queryText: '',
-      limit,
-      ...(kind ? { extensionFilter: [kind] } : {}),
-    };
-
-    // Determine collections
-    const collections: string[] = [];
-    if (project && project !== 'global') {
-      const projCol = collectionName(project);
-      if (await this.vectordb.hasCollection(projCol)) {
-        collections.push(projCol);
-      }
+  listMemories(kind?: string, limit = 50, project?: string): QueryWithFacts[] {
+    if (project) {
+      return this.memorydb.listByProject(project, limit, kind);
     }
-    const globalCol = collectionName('global');
-    if (await this.vectordb.hasCollection(globalCol)) {
-      collections.push(globalCol);
-    }
-
-    if (collections.length === 0) return [];
-
-    const allResults = await Promise.all(
-      collections.map(async (col) => {
-        const results = await this.vectordb.search(col, searchOpts);
-        const items: MemoryItem[] = [];
-        for (const r of results) {
-          const id = r.relativePath;
-          const point = await this.vectordb.getById(col, id);
-          if (!point) continue;
-          const item = payloadToMemoryItem(id, point.payload);
-          if (item.superseded_by) continue;
-          items.push(item);
-        }
-        return items;
-      }),
-    );
-
-    return allResults.flat().slice(0, limit);
+    const raw = this.memorydb.listAll(limit);
+    if (!kind) return raw;
+    return raw
+      .map((qf) => ({ ...qf, facts: qf.facts.filter((f) => f.kind === kind) }))
+      .filter((qf) => qf.facts.length > 0);
   }
 
-  async deleteMemory(id: string, project?: string): Promise<boolean> {
-    // Try project collection first, then global
-    const collectionsToTry: string[] = [];
-    if (project && project !== 'global') {
-      collectionsToTry.push(collectionName(project));
+  deleteMemory(queryId: string): boolean {
+    const query = this.memorydb.getQueryById(queryId);
+    if (!query) return false;
+
+    const deleted = this.memorydb.deleteQuery(queryId);
+    if (deleted) {
+      this.history.log(queryId, 'DELETE', null, query.query_text);
     }
-    collectionsToTry.push(collectionName('global'));
-
-    // Also try any initialized collection (fallback for unknown project)
-    for (const col of this.initializedCollections) {
-      if (!collectionsToTry.includes(col)) {
-        collectionsToTry.push(col);
-      }
-    }
-
-    for (const col of collectionsToTry) {
-      const exists = await this.vectordb.hasCollection(col);
-      if (!exists) continue;
-
-      const existing = await this.vectordb.getById(col, id);
-      if (!existing) continue;
-
-      const ep = asPayload(existing.payload);
-      const memory = ep.memory ?? ep.content ?? '';
-      await this.vectordb.deleteByPath(col, id);
-      this.history.log(id, 'DELETE', null, memory);
-      return true;
-    }
-
-    return false;
+    return deleted;
   }
 
   getHistory(memoryId: string) {
     return this.history.getHistory(memoryId);
   }
-
-  private async bumpAccessCounts(items: MemoryItem[]): Promise<void> {
-    const now = new Date().toISOString();
-    for (const item of items) {
-      try {
-        const col = collectionName(item.project);
-        const exists = await this.vectordb.hasCollection(col);
-        if (!exists) continue;
-        const point = await this.vectordb.getById(col, item.id);
-        if (!point) continue;
-        const currentCount = Number(point.payload.access_count ?? 0);
-        await this.vectordb.updatePoint(col, item.id, point.vector, {
-          ...point.payload,
-          access_count: currentCount + 1,
-          last_accessed: now,
-        });
-      } catch {
-        // Silently ignore — access tracking is a best-effort utility signal
-      }
-    }
-  }
-
-  private async processFact(
-    fact: ExtractedFact,
-    source?: string,
-    project = 'global',
-  ): Promise<MemoryAction | null> {
-    const col = collectionName(project);
-    const hash = hashMemory(fact.fact);
-    const vector = await this.embedding.embed(fact.fact);
-
-    const searchResults = await this.vectordb.search(col, {
-      queryVector: vector,
-      queryText: fact.fact,
-      limit: SEARCH_CANDIDATES,
-    });
-
-    const candidates: ExistingMatch[] = [];
-    for (const result of searchResults) {
-      const id = result.relativePath;
-      if (!id) continue;
-      const point = await this.vectordb.getById(col, id);
-      if (!point) continue;
-      candidates.push({
-        id,
-        memory: result.content,
-        hash: asPayload(point.payload).hash ?? '',
-        vector: point.vector,
-        score: result.score,
-        kind: asPayload(point.payload).kind ?? '',
-      });
-    }
-
-    const decision = reconcile(hash, vector, candidates, fact.kind);
-
-    if (decision.action === 'NONE') return null;
-
-    const now = new Date().toISOString();
-    const validAt = fact.valid_at ?? now;
-
-    // SUPERSEDE: create new entry, link old → new
-    if (decision.action === 'SUPERSEDE' && decision.existingId) {
-      const id = randomUUID();
-
-      // Mark old entry as superseded
-      const existingPoint = await this.vectordb.getById(col, decision.existingId);
-      if (existingPoint) {
-        await this.vectordb.updatePoint(col, decision.existingId, existingPoint.vector, {
-          ...existingPoint.payload,
-          superseded_by: id,
-        });
-      }
-
-      // Create new entry with supersedes pointer
-      await this.vectordb.updatePoint(col, id, vector, {
-        content: fact.fact,
-        relativePath: id,
-        fileExtension: fact.kind,
-        language: source ?? '',
-        startLine: 0,
-        endLine: 0,
-        hash,
-        memory: fact.fact,
-        kind: fact.kind,
-        source: source ?? '',
-        project,
-        access_count: 0,
-        last_accessed: '',
-        supersedes: decision.existingId,
-        superseded_by: null,
-        valid_at: validAt,
-        created_at: now,
-        updated_at: now,
-      });
-
-      this.history.log(id, 'SUPERSEDE', fact.fact, decision.existingMemory, source, now);
-
-      return {
-        event: 'SUPERSEDE',
-        id,
-        memory: fact.fact,
-        previous: decision.existingMemory,
-        kind: fact.kind,
-        source,
-        project,
-        supersedes: decision.existingId,
-      };
-    }
-
-    if (decision.action === 'UPDATE' && decision.existingId) {
-      const existingPoint = await this.vectordb.getById(col, decision.existingId);
-      const ep = existingPoint ? asPayload(existingPoint.payload) : null;
-      const createdAt = ep?.created_at ?? now;
-      const existingAccessCount = ep?.access_count ?? 0;
-      const existingLastAccessed = ep?.last_accessed ?? '';
-
-      await this.vectordb.updatePoint(col, decision.existingId, vector, {
-        content: fact.fact,
-        relativePath: decision.existingId,
-        fileExtension: fact.kind,
-        language: source ?? '',
-        startLine: 0,
-        endLine: 0,
-        hash,
-        memory: fact.fact,
-        kind: fact.kind,
-        source: source ?? '',
-        project,
-        access_count: existingAccessCount,
-        last_accessed: existingLastAccessed,
-        supersedes: ep?.supersedes ?? null,
-        superseded_by: ep?.superseded_by ?? null,
-        valid_at: validAt,
-        created_at: createdAt,
-        updated_at: now,
-      });
-
-      this.history.log(
-        decision.existingId,
-        'UPDATE',
-        fact.fact,
-        decision.existingMemory,
-        source,
-        now,
-      );
-
-      return {
-        event: 'UPDATE',
-        id: decision.existingId,
-        memory: fact.fact,
-        previous: decision.existingMemory,
-        kind: fact.kind,
-        source,
-        project,
-      };
-    }
-
-    // ADD
-    const id = randomUUID();
-    await this.vectordb.updatePoint(col, id, vector, {
-      content: fact.fact,
-      relativePath: id,
-      fileExtension: fact.kind,
-      language: source ?? '',
-      startLine: 0,
-      endLine: 0,
-      hash,
-      memory: fact.fact,
-      kind: fact.kind,
-      source: source ?? '',
-      project,
-      access_count: 0,
-      last_accessed: '',
-      supersedes: null,
-      superseded_by: null,
-      valid_at: validAt,
-      created_at: now,
-      updated_at: now,
-    });
-
-    this.history.log(id, 'ADD', fact.fact, null, source, now);
-
-    return {
-      event: 'ADD',
-      id,
-      memory: fact.fact,
-      kind: fact.kind,
-      source,
-      project,
-    };
-  }
-}
-
-function asPayload(raw: Record<string, unknown>): MemoryPayload {
-  return raw as MemoryPayload;
-}
-
-function payloadToMemoryItem(id: string, raw: Record<string, unknown>): MemoryItem {
-  const p = asPayload(raw);
-  return {
-    id,
-    memory: p.memory ?? p.content ?? '',
-    hash: p.hash ?? '',
-    kind: (p.kind ?? p.fileExtension ?? 'fact') as MemoryKind,
-    source: p.source ?? p.language ?? '',
-    project: p.project ?? 'global',
-    access_count: p.access_count ?? 0,
-    last_accessed: p.last_accessed ?? '',
-    supersedes: p.supersedes ?? null,
-    superseded_by: p.superseded_by ?? null,
-    valid_at: p.valid_at ?? '',
-    created_at: p.created_at ?? '',
-    updated_at: p.updated_at ?? '',
-  };
 }

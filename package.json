@@ -1,6 +1,6 @@
 {
   "name": "claude-eidetic",
-  "version": "2026.306.1811",
+  "version": "2026.313.411",
   "description": "Persistent memory for AI agents",
   "type": "module",
   "main": "dist/index.js",

@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { BufferItem } from './types.js';
 
-export const FLUSH_THRESHOLD = 20;
+export const FLUSH_THRESHOLD = 8;
 
 const STALE_LOCK_MS = 5 * 60 * 1000; // 5 minutes
 

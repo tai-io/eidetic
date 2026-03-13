@@ -5,17 +5,10 @@ import type { MemoryItem } from '../../memory/types.js';
 const makeMemory = (overrides: Partial<MemoryItem> = {}): MemoryItem => ({
   id: 'test-id',
   memory: 'Docker build fails on M1; use --platform linux/amd64',
-  hash: 'abc123',
   kind: 'fact',
   source: 'claude',
   project: 'global',
-  access_count: 0,
-  last_accessed: '',
-  supersedes: null,
-  superseded_by: null,
-  valid_at: '2026-01-01T00:00:00Z',
   created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
   ...overrides,
 });
 
@@ -53,6 +46,6 @@ describe('formatMemoryContext', () => {
   it('includes footer with search_memory and add_memory hints', () => {
     const output = formatMemoryContext([makeMemory()]);
     expect(output).toContain('search_memory(query)');
-    expect(output).toContain('add_memory(facts)');
+    expect(output).toContain('add_memory');
   });
 });

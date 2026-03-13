@@ -21,7 +21,8 @@ import { TOOL_DEFINITIONS } from './tool-schemas.js';
 import { getSetupErrorMessage } from './setup-message.js';
 import { MemoryStore } from './memory/store.js';
 import { MemoryHistory } from './memory/history.js';
-import { getMemoryDbPath } from './paths.js';
+import { QueryMemoryDB } from './memory/query-memorydb.js';
+import { getMemoryDbPath, getMemoryStorePath } from './paths.js';
 import { BUILD_VERSION, BUILD_TIMESTAMP } from './build-info.js';
 
 const WORKFLOW_GUIDANCE = `# Eidetic — Persistent Memory
@@ -34,12 +35,18 @@ const WORKFLOW_GUIDANCE = `# Eidetic — Persistent Memory
 - \`memory_history(id="...")\` — view change log for a memory
 - Memories are automatically deduplicated — adding similar facts updates existing ones
 
-**Knowledge graph:**
-- \`browse_graph()\` — explore entity relationships extracted from memory consolidation
+**Persistent memory (cross-session developer knowledge):**
+- \`add_memory(query="user intent", facts=[{fact:"...", kind:"..."}])\` → stores facts grouped under a query key (fact/decision/convention/constraint/intent)
+- \`search_memory(query="...")\` → find relevant memories by semantic search against stored queries
+- \`list_memories()\` → see all stored query groups with their facts
+- \`delete_memory(id="...")\` → remove a query group and all its facts
+- \`memory_history(id="...")\` → view change log for a memory
+- Queries are automatically deduplicated — similar queries (cosine >= 0.92) merge their facts
 
 **RAPTOR knowledge generation:**
 - \`raptor_cluster(path="...")\` — cluster code chunks for summarization
 - \`raptor_store_summaries(summaries=[...])\` — store LLM-generated cluster summaries`;
+
 
 async function main() {
   // CLI subcommand routing — hooks call `npx claude-eidetic hook <event>`
@@ -68,23 +75,10 @@ async function main() {
 
     // Initialize memory subsystem
     try {
+      const memorydb = new QueryMemoryDB(getMemoryStorePath());
       const memoryHistory = new MemoryHistory(getMemoryDbPath());
-      const memoryStore = new MemoryStore(embedding, vectordb, memoryHistory);
+      const memoryStore = new MemoryStore(embedding, memorydb, memoryHistory);
       handlers.setMemoryStore(memoryStore);
-
-      // Initialize graph memory (non-fatal)
-      try {
-        const { MemoryGraph } = await import('./memory/graph.js');
-        const { getBufferDbPath } = await import('./paths.js');
-        const graph = new MemoryGraph(getBufferDbPath());
-        handlers.setMemoryGraph(graph);
-        console.log('Knowledge graph initialized.');
-      } catch (graphErr) {
-        console.warn(
-          `Knowledge graph init failed (non-fatal): ${graphErr instanceof Error ? graphErr.message : String(graphErr)}`,
-        );
-      }
-
       console.log('Memory system initialized.');
     } catch (memErr) {
       console.warn(
@@ -142,8 +136,6 @@ async function main() {
         return handlers.handleDeleteMemory(args ?? {});
       case 'memory_history':
         return handlers.handleMemoryHistory(args ?? {});
-      case 'browse_graph':
-        return handlers.handleBrowseGraph(args ?? {});
       case 'raptor_cluster':
         return handlers.handleRaptorCluster(args ?? {});
       case 'raptor_store_summaries':
