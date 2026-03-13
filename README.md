@@ -12,11 +12,9 @@ Persistent memory for Claude Code. Store knowledge, recall by meaning, pick up w
 ## Quick Start
 
 ```bash
-npm install -g @tai-io/eidetic
-```
-
-```bash
 export OPENAI_API_KEY=sk-...
+npm install -g @tai-io/eidetic
+claude mcp add -s user -e "OPENAI_API_KEY=$OPENAI_API_KEY" -- eidetic npx @tai-io/eidetic
 ```
 
 ```
@@ -90,6 +88,7 @@ Add to your `.mcp.json`:
 
 ```bash
 npm install -g @tai-io/eidetic
+claude mcp add -s user -e "OPENAI_API_KEY=$OPENAI_API_KEY" -- eidetic npx @tai-io/eidetic
 ```
 
 ### From source
