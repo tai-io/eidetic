@@ -57,19 +57,19 @@ describe('setup-message', () => {
   describe('getWelcomeMessage', () => {
     it('includes ASCII art', () => {
       const result = getWelcomeMessage();
-      expect(result).toContain('semantic code search');
-      expect(result).toContain('Claude Code');
+      expect(result).toContain('persistent memory');
+      expect(result).toContain('AI agents');
     });
 
     it('includes quick start instructions', () => {
       const result = getWelcomeMessage();
-      expect(result).toContain('/index');
-      expect(result).toContain('search_code');
+      expect(result).toContain('add_memory');
+      expect(result).toContain('search_memory');
     });
 
-    it('mentions that everything else is optional', () => {
+    it('mentions sessions', () => {
       const result = getWelcomeMessage();
-      expect(result).toContain('optional');
+      expect(result).toContain('sessions');
     });
   });
 });

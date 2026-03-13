@@ -4,15 +4,14 @@ welcome:
   ascii_art: |
     ┌─────────────────────────────────────────────┐
     │  ╔═╗╦╔╦╗╔═╗╔╦╗╦╔═╗                         │
-    │  ║╣ ║ ║║║╣  ║ ║║    semantic code search    │
-    │  ╚═╝╩═╩╝╚═╝ ╩ ╩╚═╝  for Claude Code        │
+    │  ║╣ ║ ║║║╣  ║ ║║    persistent memory       │
+    │  ╚═╝╩═╩╝╚═╝ ╩ ╩╚═╝  for AI agents          │
     └─────────────────────────────────────────────┘
   first_run: |
     Eidetic is ready! Quick start:
-    1. `/index` — index this codebase
-    2. `search_code("how does X work")` — search by meaning
-    3. That's it. Everything else is optional.
-  qdrant_provisioned: "Qdrant was auto-provisioned via Docker (container: eidetic-qdrant)."
+    1. `add_memory(query="...", facts=[...])` — store knowledge
+    2. `search_memory("how does X work")` — recall by meaning
+    3. That's it. Memories persist across sessions.
 
 setup:
   missing:

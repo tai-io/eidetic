@@ -24,7 +24,7 @@ describe('classifyQuery', () => {
   });
 
   it('returns rationale for "why did" queries', () => {
-    expect(classifyQuery('why did we choose Qdrant?')).toBe('rationale');
+    expect(classifyQuery('why did we choose SQLite?')).toBe('rationale');
   });
 
   it('returns rationale for "why do" queries', () => {

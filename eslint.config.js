@@ -49,8 +49,7 @@ export default tseslint.config(
       // produce many false positives without noUncheckedIndexedAccess in tsconfig
       '@typescript-eslint/no-unnecessary-condition': 'warn',
 
-      // Warn on Object-to-string — unknown catch vars and Qdrant payload fields
-      // are stringified intentionally; the code is correct
+      // Warn on Object-to-string — unknown catch vars are stringified intentionally
       '@typescript-eslint/no-base-to-string': 'warn',
 
       // Allow empty arrow functions (fire-and-forget .catch(() => {}))

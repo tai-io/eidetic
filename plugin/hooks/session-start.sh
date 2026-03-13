@@ -21,9 +21,6 @@ if ! node -e "
   [ -n "$EMBEDDING_PROVIDER" ] && _env_args+=(-e "EMBEDDING_PROVIDER=$EMBEDDING_PROVIDER")
   [ -n "$OPENAI_BASE_URL" ]    && _env_args+=(-e "OPENAI_BASE_URL=$OPENAI_BASE_URL")
   [ -n "$OLLAMA_BASE_URL" ]    && _env_args+=(-e "OLLAMA_BASE_URL=$OLLAMA_BASE_URL")
-  [ -n "$QDRANT_URL" ]         && _env_args+=(-e "QDRANT_URL=$QDRANT_URL")
-  [ -n "$QDRANT_API_KEY" ]     && _env_args+=(-e "QDRANT_API_KEY=$QDRANT_API_KEY")
-  [ -n "$VECTORDB_PROVIDER" ]  && _env_args+=(-e "VECTORDB_PROVIDER=$VECTORDB_PROVIDER")
   claude mcp add -s user "${_env_args[@]}" -- claude-eidetic npx claude-eidetic 2>/dev/null || true
 fi
 
