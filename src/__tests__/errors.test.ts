@@ -3,18 +3,14 @@ import {
   EideticError,
   ConfigError,
   EmbeddingError,
-  VectorDBError,
   MemoryError,
-  RaptorError,
 } from '../errors.js';
 
 describe('Error hierarchy', () => {
   const errorClasses = [
     { Class: ConfigError, name: 'ConfigError' },
     { Class: EmbeddingError, name: 'EmbeddingError' },
-    { Class: VectorDBError, name: 'VectorDBError' },
     { Class: MemoryError, name: 'MemoryError' },
-    { Class: RaptorError, name: 'RaptorError' },
   ];
 
   for (const { Class, name } of errorClasses) {

@@ -23,10 +23,6 @@ export function getCacheDir(): string {
   return `${getDataDir()}/cache`;
 }
 
-export function getRegistryPath(): string {
-  return `${getDataDir()}/registry.json`;
-}
-
 export function getMemoryDbPath(): string {
   return `${getDataDir()}/memory-history.db`;
 }
@@ -39,14 +35,3 @@ export function getBufferDbPath(): string {
   return `${getDataDir()}/buffer.db`;
 }
 
-export function getRaptorDbPath(): string {
-  return `${getDataDir()}/raptor.db`;
-}
-
-export function knowledgeCollectionName(project: string): string {
-  return `eidetic_${project}_knowledge`;
-}
-
-export function globalConceptsCollectionName(): string {
-  return 'eidetic_global_concepts';
-}

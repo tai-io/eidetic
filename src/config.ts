@@ -11,19 +11,7 @@ const configSchema = z
     ollamaBaseUrl: z.string().default('http://localhost:11434/v1'),
     embeddingModel: z.string().optional(),
     embeddingBatchSize: z.coerce.number().int().min(1).max(2048).default(100),
-    indexingConcurrency: z.coerce.number().int().min(1).max(32).default(8),
-    qdrantUrl: z.string().default('http://localhost:6333'),
-    qdrantApiKey: z.string().optional(),
-    vectordbProvider: z.enum(['chroma', 'qdrant', 'milvus']).default('chroma'),
-    chromaDataDir: z.string().optional(),
-    milvusAddress: z.string().default('localhost:19530'),
-    milvusToken: z.string().optional(),
     eideticDataDir: z.string().default(path.join(os.homedir(), '.eidetic')),
-    raptorEnabled: z.preprocess(
-      (val) => (val === 'false' ? false : val === 'true' ? true : val),
-      z.boolean().default(true),
-    ),
-    raptorTimeoutMs: z.coerce.number().int().min(1000).default(60000),
     extractionModel: z.string().default('gpt-4o-mini'),
   })
   .transform((cfg) => ({
@@ -32,8 +20,6 @@ const configSchema = z
     embeddingModel:
       cfg.embeddingModel ??
       (cfg.embeddingProvider === 'ollama' ? 'nomic-embed-text' : 'text-embedding-3-small'),
-    // Default Chroma data directory under eidetic data dir
-    chromaDataDir: cfg.chromaDataDir ?? path.join(cfg.eideticDataDir, 'chroma'),
   }));
 
 export type Config = z.infer<typeof configSchema>;
@@ -48,16 +34,7 @@ export function loadConfig(): Config {
     ollamaBaseUrl: process.env.OLLAMA_BASE_URL,
     embeddingModel: process.env.EMBEDDING_MODEL?.trim() ?? undefined,
     embeddingBatchSize: process.env.EMBEDDING_BATCH_SIZE,
-    indexingConcurrency: process.env.INDEXING_CONCURRENCY,
-    qdrantUrl: process.env.QDRANT_URL,
-    qdrantApiKey: process.env.QDRANT_API_KEY?.trim().replace(/^["']|["']$/g, '') ?? undefined,
-    vectordbProvider: process.env.VECTORDB_PROVIDER,
-    chromaDataDir: process.env.CHROMA_DATA_DIR?.trim() ?? undefined,
-    milvusAddress: process.env.MILVUS_ADDRESS,
-    milvusToken: process.env.MILVUS_TOKEN?.trim().replace(/^["']|["']$/g, '') ?? undefined,
     eideticDataDir: process.env.EIDETIC_DATA_DIR,
-    raptorEnabled: process.env.RAPTOR_ENABLED,
-    raptorTimeoutMs: process.env.RAPTOR_TIMEOUT_MS,
     extractionModel: process.env.EXTRACTION_MODEL?.trim() ?? undefined,
   };
 

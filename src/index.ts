@@ -15,7 +15,6 @@ import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprot
 
 import { loadConfig } from './config.js';
 import { createEmbedding } from './embedding/factory.js';
-import { createVectorDB } from './vectordb/factory.js';
 import { ToolHandlers } from './tools.js';
 import { TOOL_DEFINITIONS } from './tool-schemas.js';
 import { getSetupErrorMessage } from './setup-message.js';
@@ -41,11 +40,7 @@ const WORKFLOW_GUIDANCE = `# Eidetic — Persistent Memory
 - \`list_memories()\` → see all stored query groups with their facts
 - \`delete_memory(id="...")\` → remove a query group and all its facts
 - \`memory_history(id="...")\` → view change log for a memory
-- Queries are automatically deduplicated — similar queries (cosine >= 0.92) merge their facts
-
-**RAPTOR knowledge generation:**
-- \`raptor_cluster(path="...")\` — cluster code chunks for summarization
-- \`raptor_store_summaries(summaries=[...])\` — store LLM-generated cluster summaries`;
+- Queries are automatically deduplicated — similar queries (cosine >= 0.92) merge their facts`;
 
 async function main() {
   // CLI subcommand routing — hooks call `npx claude-eidetic hook <event>`
@@ -56,9 +51,7 @@ async function main() {
   }
 
   const config = loadConfig();
-  console.log(
-    `Config loaded. Provider: ${config.vectordbProvider}, Model: ${config.embeddingModel}`,
-  );
+  console.log(`Config loaded. Model: ${config.embeddingModel}`);
 
   let handlers: ToolHandlers | null = null;
   let setupError: string | null = null;
@@ -67,24 +60,12 @@ async function main() {
     const embedding = createEmbedding(config);
     await embedding.initialize();
 
-    const vectordb = await createVectorDB(config);
-    console.log(`Using ${config.vectordbProvider} vector database.`);
+    const memorydb = new QueryMemoryDB(getMemoryStorePath());
+    const memoryHistory = new MemoryHistory(getMemoryDbPath());
+    const memoryStore = new MemoryStore(embedding, memorydb, memoryHistory);
 
-    handlers = new ToolHandlers(embedding, vectordb);
-
-    // Initialize memory subsystem
-    try {
-      const memorydb = new QueryMemoryDB(getMemoryStorePath());
-      const memoryHistory = new MemoryHistory(getMemoryDbPath());
-      const memoryStore = new MemoryStore(embedding, memorydb, memoryHistory);
-      handlers.setMemoryStore(memoryStore);
-      console.log('Memory system initialized.');
-    } catch (memErr) {
-      console.warn(
-        `Memory system initialization failed: ${memErr instanceof Error ? memErr.message : String(memErr)}`,
-      );
-      console.warn('Memory tools will return errors. Other tools work normally.');
-    }
+    handlers = new ToolHandlers(memoryStore);
+    console.log('Memory system initialized.');
   } catch (err) {
     setupError = err instanceof Error ? err.message : String(err);
     console.warn(`Eidetic initialization failed: ${setupError}`);
@@ -135,10 +116,6 @@ async function main() {
         return handlers.handleDeleteMemory(args ?? {});
       case 'memory_history':
         return handlers.handleMemoryHistory(args ?? {});
-      case 'raptor_cluster':
-        return handlers.handleRaptorCluster(args ?? {});
-      case 'raptor_store_summaries':
-        return handlers.handleRaptorStoreSummaries(args ?? {});
       default:
         return {
           content: [{ type: 'text' as const, text: `Unknown tool: ${name}` }],

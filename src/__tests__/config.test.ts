@@ -26,9 +26,6 @@ describe('loadConfig', () => {
     const loadConfig = await freshLoadConfig();
     const config = loadConfig();
     expect(config.embeddingBatchSize).toBe(100);
-    expect(config.indexingConcurrency).toBe(8);
-    expect(config.qdrantUrl).toBe('http://localhost:6333');
-    expect(config.vectordbProvider).toBe('chroma');
     expect(config.embeddingModel).toBe('text-embedding-3-small');
   });
 
@@ -69,14 +66,6 @@ describe('loadConfig', () => {
     const loadConfig = await freshLoadConfig();
     const config = loadConfig();
     expect(config.embeddingBatchSize).toBe(50);
-  });
-
-  it('parses vectordb provider', async () => {
-    vi.stubEnv('OPENAI_API_KEY', 'sk-test');
-    vi.stubEnv('VECTORDB_PROVIDER', 'milvus');
-    const loadConfig = await freshLoadConfig();
-    const config = loadConfig();
-    expect(config.vectordbProvider).toBe('milvus');
   });
 
   it('defaults extractionModel to gpt-4o-mini', async () => {

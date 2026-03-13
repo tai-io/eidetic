@@ -14,7 +14,6 @@ interface SetupBlock {
 interface WelcomeBlock {
   ascii_art: string;
   first_run: string;
-  qdrant_provisioned: string;
 }
 
 interface SetupMessages {
