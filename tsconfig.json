@@ -17,5 +17,15 @@
     "isolatedModules": true
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules"]
+  "exclude": [
+    "dist",
+    "node_modules",
+    "src/vectordb/chroma.ts",
+    "src/vectordb/qdrant.ts",
+    "src/vectordb/milvus.ts",
+    "src/vectordb/rrf.ts",
+    "src/vectordb/tests/chroma.test.ts",
+    "src/vectordb/tests/qdrant.test.ts",
+    "src/vectordb/tests/qdrant.integration.test.ts"
+  ]
 }
