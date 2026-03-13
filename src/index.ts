@@ -43,7 +43,7 @@ const WORKFLOW_GUIDANCE = `# Eidetic — Persistent Memory
 - Queries are automatically deduplicated — similar queries (cosine >= 0.92) merge their facts`;
 
 async function main() {
-  // CLI subcommand routing — hooks call `npx claude-eidetic hook <event>`
+  // CLI subcommand routing — hooks call `npx @tai-io/eidetic hook <event>`
   if (process.argv[2] === 'hook') {
     const { runHook } = await import('./hooks/cli-router.js');
     await runHook(process.argv[3]);
@@ -76,7 +76,7 @@ async function main() {
 
   // eslint-disable-next-line @typescript-eslint/no-deprecated
   const server = new Server(
-    { name: 'claude-eidetic', version: BUILD_VERSION },
+    { name: '@tai-io/eidetic', version: BUILD_VERSION },
     { capabilities: { tools: {} } },
   );
 

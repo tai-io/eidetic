@@ -1,13 +1,13 @@
 {
-  "name": "claude-eidetic",
+  "name": "eidetic",
   "owner": {
-    "name": "eidetics"
+    "name": "tai-io"
   },
   "plugins": [
     {
-      "name": "claude-eidetic",
+      "name": "eidetic",
       "source": "./",
-      "description": "Semantic code search MCP server with skills, hooks, and auto-provisioning"
+      "description": "Persistent memory MCP server with session continuity and hooks"
     }
   ]
 }

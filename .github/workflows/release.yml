@@ -52,7 +52,7 @@ jobs:
           p.version = '$VERSION';
           fs.writeFileSync('$PLUGIN_JSON', JSON.stringify(p, null, 2) + '\n');
           const m = JSON.parse(fs.readFileSync('$MARKETPLACE_JSON', 'utf8'));
-          const plugin = m.plugins.find(p => p.name === 'claude-eidetic');
+          const plugin = m.plugins.find(p => p.name === 'eidetic');
           if (plugin) plugin.version = '$VERSION';
           fs.writeFileSync('$MARKETPLACE_JSON', JSON.stringify(m, null, 2) + '\n');
           "

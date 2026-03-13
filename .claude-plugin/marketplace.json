@@ -1,21 +1,21 @@
 {
-  "name": "eidetics",
-  "description": "Semantic code search for Claude Code — index once, search semantically with compact token-efficient output",
+  "name": "tai-io",
+  "description": "Persistent memory for Claude Code. Store knowledge, recall by meaning, pick up where you left off.",
   "owner": {
-    "name": "Eidetics",
-    "url": "https://github.com/eidetics"
+    "name": "tai-io",
+    "url": "https://github.com/tai-io"
   },
-  "repository": "https://github.com/eidetics/claude-eidetic",
+  "repository": "https://github.com/tai-io/eidetic",
   "plugins": [
     {
-      "name": "claude-eidetic",
-      "description": "Semantic code search MCP server with compact output, skills, and hooks",
+      "name": "eidetic",
+      "description": "Persistent memory MCP server with session continuity, skills, and hooks",
       "source": "./plugin",
       "version": "2026.306.1811",
       "category": "development",
       "tags": [
-        "code-search",
-        "semantic-search",
+        "memory",
+        "persistent-memory",
         "mcp"
       ]
     }

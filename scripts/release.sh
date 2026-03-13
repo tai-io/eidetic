@@ -16,4 +16,4 @@ fi
 
 echo "Triggering CalVer release via GitHub Actions..."
 gh workflow run release.yml
-echo "Monitor at: https://github.com/eidetics/claude-eidetic/actions/workflows/release.yml"
+echo "Monitor at: https://github.com/tai-io/eidetic/actions/workflows/release.yml"

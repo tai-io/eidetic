@@ -1,7 +1,7 @@
 /**
  * CLI subcommand router for hook events.
  *
- * Plugin bash hooks call `npx claude-eidetic hook <event>` which routes here.
+ * Plugin bash hooks call `npx @tai-io/eidetic hook <event>` which routes here.
  * Each case dynamically imports the hook module and calls its run() function.
  */
 

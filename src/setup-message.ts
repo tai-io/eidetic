@@ -32,7 +32,7 @@ interface SetupMessages {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const yamlPath = join(__dirname, '..', 'messages.yaml');
+const yamlPath = join(__dirname, 'messages.yaml');
 
 let _cached: SetupMessages | null = null;
 function loadMessages(): SetupMessages {

@@ -99,14 +99,6 @@ export default tseslint.config(
     },
   },
 
-  // milvus.ts uses dynamic imports with loosely-typed optional SDK
-  {
-    files: ['src/vectordb/milvus.ts'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-    },
-  },
-
   // Prettier last — disables formatting conflicts
   prettierConfig,
 );

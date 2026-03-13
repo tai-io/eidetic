@@ -3,7 +3,7 @@
 # Message content lives in src/setup-message.ts (single source of truth)
 
 if [ -z "$OPENAI_API_KEY" ] && [ "${EMBEDDING_PROVIDER:-openai}" = "openai" ]; then
-  npx claude-eidetic hook setup-message missing "OPENAI_API_KEY is not set."
+  npx @tai-io/eidetic hook setup-message missing "OPENAI_API_KEY is not set."
   exit 0
 fi
 
@@ -13,7 +13,7 @@ if ! node -e "
   try {
     const p = path.join(os.homedir(), '.claude.json');
     const d = JSON.parse(fs.readFileSync(p, 'utf8'));
-    process.exit(d.mcpServers && d.mcpServers['claude-eidetic'] ? 0 : 1);
+    process.exit(d.mcpServers && d.mcpServers['@tai-io/eidetic'] ? 0 : 1);
   } catch (e) { process.exit(1); }
 " 2>/dev/null; then
   _env_args=()
@@ -21,7 +21,7 @@ if ! node -e "
   [ -n "$EMBEDDING_PROVIDER" ] && _env_args+=(-e "EMBEDDING_PROVIDER=$EMBEDDING_PROVIDER")
   [ -n "$OPENAI_BASE_URL" ]    && _env_args+=(-e "OPENAI_BASE_URL=$OPENAI_BASE_URL")
   [ -n "$OLLAMA_BASE_URL" ]    && _env_args+=(-e "OLLAMA_BASE_URL=$OLLAMA_BASE_URL")
-  claude mcp add -s user "${_env_args[@]}" -- claude-eidetic npx claude-eidetic 2>/dev/null || true
+  claude mcp add -s user "${_env_args[@]}" -- @tai-io/eidetic npx @tai-io/eidetic 2>/dev/null || true
 fi
 
 # Detect first-run: if registry.json is empty/missing, show welcome message
@@ -35,11 +35,11 @@ _is_first_run=$(node -e "
 " 2>/dev/null && echo "yes" || echo "no")
 
 if [ "$_is_first_run" = "yes" ]; then
-  npx claude-eidetic hook setup-message welcome 2>/dev/null || true
+  npx @tai-io/eidetic hook setup-message welcome 2>/dev/null || true
 else
   # Inject Tier-0 context from most recent session (non-blocking, best-effort)
-  npx claude-eidetic hook tier0-inject 2>/dev/null || true
+  npx @tai-io/eidetic hook tier0-inject 2>/dev/null || true
 
   # Inject stored memories from vector DB (non-blocking, best-effort)
-  npx claude-eidetic hook memory-inject 2>/dev/null || true
+  npx @tai-io/eidetic hook memory-inject 2>/dev/null || true
 fi

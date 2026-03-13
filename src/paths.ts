@@ -34,4 +34,3 @@ export function getMemoryStorePath(): string {
 export function getBufferDbPath(): string {
   return `${getDataDir()}/buffer.db`;
 }
-

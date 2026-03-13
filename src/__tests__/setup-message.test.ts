@@ -58,7 +58,7 @@ describe('setup-message', () => {
     it('includes ASCII art', () => {
       const result = getWelcomeMessage();
       expect(result).toContain('persistent memory');
-      expect(result).toContain('AI agents');
+      expect(result).toContain('Claude Code');
     });
 
     it('includes quick start instructions', () => {

@@ -40,15 +40,7 @@ ls -t "$NOTES_DIR"/*.md 2>/dev/null | head -3
 
 Read the top 2-3 most recent note files.
 
-## Step 4: Optionally Search Code Context
-
-If codesearch is available and the notes are indexed:
-
-```
-search_code(path="<NOTES_DIR>", query="recent decisions and changes for <PROJECT_NAME>", limit=5)
-```
-
-## Step 5: Present Summary
+## Step 4: Present Summary
 
 ```
 ## Catchup: <PROJECT_NAME>

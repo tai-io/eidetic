@@ -1,16 +1,14 @@
 {
-  "name": "claude-eidetic",
+  "name": "eidetic",
   "version": "2026.306.1811",
-  "description": "Persistent memory for AI agents with semantic code search",
+  "description": "Persistent memory for Claude Code",
   "author": {
-    "name": "eidetics"
+    "name": "tai-io"
   },
   "license": "MIT",
   "keywords": [
     "memory",
-    "knowledge-graph",
-    "code-search",
-    "semantic-search",
+    "persistent-memory",
     "mcp",
     "eidetic"
   ]

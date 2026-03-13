@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sets up a test project to use the local claude-eidetic plugin and MCP server.
+# Sets up a test project to use the local @tai-io/eidetic plugin and MCP server.
 # Usage: bash scripts/setup-dev-test.sh [target-dir]
 #   target-dir defaults to current directory
 
@@ -30,14 +30,14 @@ EOF
 )
 
 if [ -f "$MCP_FILE" ] && command -v node &>/dev/null; then
-  # Merge claude-eidetic entry into existing file, preserving other servers
+  # Merge @tai-io/eidetic entry into existing file, preserving other servers
   MERGE_SCRIPT=$(mktemp)
   cat > "$MERGE_SCRIPT" <<JSEOF
 const fs = require('fs');
 const file = process.argv[2];
 const existing = JSON.parse(fs.readFileSync(file, 'utf8'));
 existing.mcpServers = existing.mcpServers || {};
-existing.mcpServers['claude-eidetic'] = $EIDETIC_ENTRY;
+existing.mcpServers['@tai-io/eidetic'] = $EIDETIC_ENTRY;
 fs.writeFileSync(file, JSON.stringify(existing, null, 2) + '\n');
 JSEOF
   node "$MERGE_SCRIPT" "$MCP_FILE"
@@ -46,7 +46,7 @@ else
   cat > "$MCP_FILE" <<EOF
 {
   "mcpServers": {
-    "claude-eidetic": $EIDETIC_ENTRY
+    "@tai-io/eidetic": $EIDETIC_ENTRY
   }
 }
 EOF

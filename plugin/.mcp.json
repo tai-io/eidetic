@@ -1,14 +1,7 @@
 {
-  "claude-eidetic": {
+  "eidetic": {
     "command": "npx",
-    "args": ["claude-eidetic"],
-    "env": {
-      "OPENAI_API_KEY": "${OPENAI_API_KEY}"
-    }
-  },
-  "claude-codesearch": {
-    "command": "npx",
-    "args": ["claude-codesearch"],
+    "args": ["@tai-io/eidetic"],
     "env": {
       "OPENAI_API_KEY": "${OPENAI_API_KEY}"
     }
