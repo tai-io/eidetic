@@ -62,20 +62,21 @@ async function main(): Promise<void> {
         { createEmbedding },
         { MemoryHistory },
         { MemoryStore },
-        { QueryMemoryDB },
-        { getMemoryDbPath, getMemoryStorePath },
+        { MarkdownMemoryDB },
+        { getMemoryDbPath, getMemoriesDir, getVectorCachePath },
       ] = await Promise.all([
         import('../embedding/factory.js'),
         import('./history.js'),
         import('./store.js'),
-        import('./query-memorydb.js'),
+        import('./markdown-memorydb.js'),
         import('../paths.js'),
       ]);
 
       const embedding = createEmbedding(config);
       await embedding.initialize();
 
-      const memorydb = new QueryMemoryDB(getMemoryStorePath());
+      const memoriesDir = getMemoriesDir(project);
+      const memorydb = new MarkdownMemoryDB(memoriesDir, getVectorCachePath(memoriesDir));
       const history = new MemoryHistory(getMemoryDbPath());
       const store = new MemoryStore(embedding, memorydb, history);
 

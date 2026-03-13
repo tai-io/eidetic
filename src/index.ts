@@ -20,8 +20,14 @@ import { TOOL_DEFINITIONS } from './tool-schemas.js';
 import { getSetupErrorMessage } from './setup-message.js';
 import { MemoryStore } from './memory/store.js';
 import { MemoryHistory } from './memory/history.js';
-import { QueryMemoryDB } from './memory/query-memorydb.js';
-import { getMemoryDbPath, getMemoryStorePath } from './paths.js';
+import { MarkdownMemoryDB } from './memory/markdown-memorydb.js';
+import {
+  getMemoryDbPath,
+  getMemoriesDir,
+  getVectorCachePath,
+  getMemoryStorePath,
+} from './paths.js';
+import { migrateToMarkdown } from './memory/migrate-to-markdown.js';
 import { BUILD_VERSION, BUILD_TIMESTAMP } from './build-info.js';
 
 const WORKFLOW_GUIDANCE = `# Eidetic — Persistent Memory
@@ -60,12 +66,20 @@ async function main() {
     const embedding = createEmbedding(config);
     await embedding.initialize();
 
-    const memorydb = new QueryMemoryDB(getMemoryStorePath());
+    // Default project for MCP server context (hooks detect project from CWD)
+    const project = 'global';
+    const memoriesDir = getMemoriesDir(project);
+    const cachePath = getVectorCachePath(memoriesDir);
+
+    // Auto-migrate from SQLite if old memorystore.db exists
+    migrateToMarkdown(getMemoryStorePath(), memoriesDir, cachePath);
+
+    const memorydb = new MarkdownMemoryDB(memoriesDir, cachePath);
     const memoryHistory = new MemoryHistory(getMemoryDbPath());
     const memoryStore = new MemoryStore(embedding, memorydb, memoryHistory);
 
     handlers = new ToolHandlers(memoryStore);
-    console.log('Memory system initialized.');
+    console.log('Memory system initialized (markdown-backed).');
   } catch (err) {
     setupError = err instanceof Error ? err.message : String(err);
     console.warn(`Eidetic initialization failed: ${setupError}`);

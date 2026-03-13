@@ -12,6 +12,7 @@ const configSchema = z
     embeddingModel: z.string().optional(),
     embeddingBatchSize: z.coerce.number().int().min(1).max(2048).default(100),
     eideticDataDir: z.string().default(path.join(os.homedir(), '.eidetic')),
+    eideticVaultDir: z.string().optional(),
     extractionModel: z.string().default('gpt-4o-mini'),
   })
   .transform((cfg) => ({
@@ -35,6 +36,7 @@ export function loadConfig(): Config {
     embeddingModel: process.env.EMBEDDING_MODEL?.trim() ?? undefined,
     embeddingBatchSize: process.env.EMBEDDING_BATCH_SIZE,
     eideticDataDir: process.env.EIDETIC_DATA_DIR,
+    eideticVaultDir: process.env.EIDETIC_VAULT_DIR?.trim() ?? undefined,
     extractionModel: process.env.EXTRACTION_MODEL?.trim() ?? undefined,
   };
 

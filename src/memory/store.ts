@@ -15,7 +15,7 @@ import type {
   QueryWithFacts,
   MemoryItem,
 } from './types.js';
-import { QueryMemoryDB } from './query-memorydb.js';
+import type { MemoryDB } from './memorydb.js';
 import { MemoryHistory } from './history.js';
 
 const DEDUP_THRESHOLD = 0.92;
@@ -23,7 +23,7 @@ const DEDUP_THRESHOLD = 0.92;
 export class MemoryStore {
   constructor(
     private embedding: Embedding,
-    private memorydb: QueryMemoryDB,
+    private memorydb: MemoryDB,
     private history: MemoryHistory,
   ) {}
 
