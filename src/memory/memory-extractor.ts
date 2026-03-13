@@ -101,12 +101,12 @@ export async function extractMemories(
 
 function parseAndValidate(raw: string): ExtractionResult {
   try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (typeof parsed !== 'object' || parsed === null) {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
       return { groups: [] };
     }
 
-    const groups = validateGroups(parsed.groups);
+    const groups = validateGroups((parsed as Record<string, unknown>).groups);
     return { groups };
   } catch {
     return { groups: [] };

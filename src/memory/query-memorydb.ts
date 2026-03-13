@@ -28,7 +28,7 @@ export function vectorToBlob(vector: number[]): Buffer {
 
 export function blobToVector(blob: Buffer): number[] {
   const count = blob.length / 4;
-  const vector: number[] = new Array(count);
+  const vector: number[] = new Array<number>(count);
   for (let i = 0; i < count; i++) {
     vector[i] = blob.readFloatLE(i * 4);
   }

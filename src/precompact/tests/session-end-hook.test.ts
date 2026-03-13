@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import path from 'node:path';
 import { createTempCodebase, cleanupTempDir } from '../../__tests__/fixtures.js';
 import { parseTranscript } from '../transcript-parser.js';

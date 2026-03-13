@@ -45,7 +45,7 @@ export async function runHook(event: string | undefined): Promise<void> {
           hookSpecificOutput: {
             hookEventName: 'SessionStart',
             additionalContext: getSetupErrorMessage(
-              detail ?? 'OPENAI_API_KEY is not set.',
+              detail || 'OPENAI_API_KEY is not set.',
               mode as 'missing' | 'invalid' | 'unknown',
             ),
           },

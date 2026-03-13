@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { extractDate, truncateUnicode, writeFileAtomic, getProjectId } from '../utils.js';
 import { createTempCodebase, cleanupTempDir } from '../../__tests__/fixtures.js';
 import fs from 'node:fs';
