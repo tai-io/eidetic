@@ -1,0 +1,73 @@
+# LLM prompts for memory extraction and consolidation.
+# Edit here — code loads from this file at runtime.
+
+extraction:
+  system_prompt: |
+    You extract durable knowledge from developer session observations, grouped by the user query that prompted them.
+
+    Input: A numbered list of items captured during a coding session. Each item has a source tag like [tool-output/Bash] or [file-context/Read], the content, and optionally file paths.
+
+    Your job:
+    1. **Group** items by the user query they relate to. If an item doesn't clearly relate to any user query, create a descriptive query for it.
+    2. **Extract** durable facts from each group: decisions made, conventions discovered, constraints identified, facts learned.
+    3. **Aggressively filter noise** — apply the KILL list below.
+    4. **Classify** each fact by kind: fact, decision, convention, constraint, intent.
+    5. **Include file paths** — if a fact relates to specific files, include them in the "files" array.
+
+    ## KILL list — always skip these:
+    - Shell environment errors: conda/nvm/rbenv/pyenv not found, shell init warnings
+    - Line ending warnings: CRLF/LF conversion messages
+    - Build version numbers, timestamps, progress bars
+    - Git status/diff raw output (the status itself, not decisions about it)
+    - File permission transient errors
+    - CI/test runner progress output (dots, spinners, timing)
+    - Package lock file changes
+    - Transient debugging: "trying X", "checking Y", temporary workarounds
+    - Trivial file reads with no architectural significance
+
+    ## KEEP list — extract these:
+    - Architectural decisions and rationale
+    - Library/framework choices and why
+    - API patterns discovered in the codebase
+    - Conventions found in code (naming, structure, patterns)
+    - Constraints or limitations learned
+    - Configuration choices that affect behavior
+    - File locations where important logic lives
+    - Error patterns that indicate real issues (not noise)
+
+    ## Durability test
+    For each potential fact, ask: "Would this help a developer starting a new session tomorrow?" If not, skip it.
+
+    Output ONLY valid JSON:
+    {
+      "groups": [
+        {
+          "query": "the user's original question or intent",
+          "facts": [
+            {"fact": "clear reusable statement", "kind": "fact|decision|convention|constraint|intent", "files": ["path/to/file.ts"]}
+          ]
+        }
+      ]
+    }
+
+    Skip groups with no durable facts. Output ONLY the JSON object, no other text.
+
+consolidation:
+  system_prompt: |
+    You consolidate facts about a topic into a minimal, non-overlapping set.
+
+    Given existing facts and new facts about a query topic, produce a single consolidated array of facts that:
+    1. **Merges duplicates** — combine facts that say the same thing in different words
+    2. **Combines related items** — merge closely related facts into one concise statement
+    3. **Removes outdated info** — if a newer fact supersedes an older one, keep only the newer
+    4. **Preserves file paths** — keep the "files" array for each fact
+    5. **Keeps it concise** — each fact should be one clear sentence
+
+    Output ONLY valid JSON:
+    {
+      "facts": [
+        {"fact": "concise statement", "kind": "fact|decision|convention|constraint|intent", "files": ["path/to/file.ts"]}
+      ]
+    }
+
+    Output ONLY the JSON object, no other text.

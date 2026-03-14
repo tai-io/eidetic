@@ -58,6 +58,7 @@ export class MemoryStore {
           id: randomUUID(),
           fact_text: f.fact,
           kind: f.kind,
+          files: f.files,
           created_at: now,
         }));
 
@@ -89,6 +90,7 @@ export class MemoryStore {
       id: randomUUID(),
       fact_text: f.fact,
       kind: f.kind,
+      files: f.files,
       created_at: now,
     }));
 

@@ -18,6 +18,7 @@ export interface FactRecord {
   query_id: string;
   fact_text: string;
   kind: MemoryKind;
+  files: string[];
   created_at: string;
 }
 
@@ -59,6 +60,7 @@ export interface MemoryAction {
 export interface ExtractedFact {
   fact: string;
   kind: MemoryKind;
+  files: string[];
 }
 
 export interface ExtractionGroup {
@@ -72,6 +74,8 @@ export interface ExtractionResult {
 
 // --- Buffer types ---
 
+export type BufferSource = 'tool-output' | 'file-context' | 'post-tool-extract' | 'user-explicit';
+
 export interface BufferItem {
   id: number;
   session_id: string;
@@ -79,5 +83,7 @@ export interface BufferItem {
   source: string;
   tool_name: string | null;
   project: string;
+  file_paths: string | null;
+  raw_output: string | null;
   captured_at: string;
 }
