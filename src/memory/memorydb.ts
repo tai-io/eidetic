@@ -15,6 +15,8 @@ export interface MemoryDB {
 
   addFactsToQuery(queryId: string, facts: Omit<FactRecord, 'query_id'>[]): void;
 
+  replaceFactsForQuery(queryId: string, facts: Omit<FactRecord, 'query_id'>[]): void;
+
   searchByQuery(queryVector: number[], project?: string, limit?: number): QuerySearchHit[];
 
   findSimilarQuery(

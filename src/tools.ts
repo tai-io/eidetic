@@ -22,12 +22,19 @@ export class ToolHandlers {
     if (!query)
       return textResult('Error: "query" is required. Provide the user question or intent.');
 
-    const facts = args.facts as { fact: string; kind: MemoryKind }[] | undefined;
-    if (!facts || !Array.isArray(facts) || facts.length === 0)
+    const rawFacts = args.facts as
+      | { fact: string; kind: MemoryKind; files: string[] }[]
+      | undefined;
+    if (!rawFacts || !Array.isArray(rawFacts) || rawFacts.length === 0)
       return textResult(
         'Error: "facts" is required. Provide an array of facts with fact and kind fields.',
       );
 
+    const facts = rawFacts.map((f) => ({
+      fact: f.fact,
+      kind: f.kind,
+      files: Array.isArray(f.files) ? f.files : [],
+    }));
     const project = args.project as string | undefined;
 
     try {

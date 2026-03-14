@@ -42,6 +42,7 @@ describe('MarkdownMemoryDB', () => {
       id: randomUUID(),
       fact_text: text,
       kind: 'fact' as const,
+      files: [] as string[],
       created_at: new Date().toISOString(),
     }));
   }
@@ -304,11 +305,18 @@ describe('MarkdownMemoryDB', () => {
     it('listByProject filters by kind', async () => {
       const query = await makeQuery({ project: 'proj-a' });
       db.addQueryWithFacts(query, [
-        { id: randomUUID(), fact_text: 'Fact', kind: 'fact', created_at: new Date().toISOString() },
+        {
+          id: randomUUID(),
+          fact_text: 'Fact',
+          kind: 'fact',
+          files: [],
+          created_at: new Date().toISOString(),
+        },
         {
           id: randomUUID(),
           fact_text: 'Decision',
           kind: 'decision',
+          files: [],
           created_at: new Date().toISOString(),
         },
       ]);

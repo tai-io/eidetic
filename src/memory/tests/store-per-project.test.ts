@@ -25,7 +25,7 @@ describe('MemoryStore per-project scoping', () => {
   it('stores global memories with project=global', async () => {
     const action = await store.addQueryWithFacts(
       'Global fact query',
-      [{ fact: 'Global fact', kind: 'fact' }],
+      [{ fact: 'Global fact', kind: 'fact', files: [] }],
       'session-1',
     );
     expect(action.project).toBe('global');
@@ -34,7 +34,7 @@ describe('MemoryStore per-project scoping', () => {
   it('stores project-scoped memories', async () => {
     const action = await store.addQueryWithFacts(
       'Project fact query',
-      [{ fact: 'Project fact', kind: 'fact' }],
+      [{ fact: 'Project fact', kind: 'fact', files: [] }],
       'session-1',
       'my-project',
     );
@@ -44,13 +44,13 @@ describe('MemoryStore per-project scoping', () => {
   it('searches both project and global queries', async () => {
     await store.addQueryWithFacts(
       'Global TypeScript convention',
-      [{ fact: 'Global TypeScript convention', kind: 'convention' }],
+      [{ fact: 'Global TypeScript convention', kind: 'convention', files: [] }],
       'session-1',
       'global',
     );
     await store.addQueryWithFacts(
       'Project TypeScript config',
-      [{ fact: 'Project TypeScript config', kind: 'convention' }],
+      [{ fact: 'Project TypeScript config', kind: 'convention', files: [] }],
       'session-1',
       'my-project',
     );
@@ -65,13 +65,13 @@ describe('MemoryStore per-project scoping', () => {
   it('ranks project-matching memories first via 1.5x boost', async () => {
     await store.addQueryWithFacts(
       'Global TypeScript info',
-      [{ fact: 'Global TypeScript fact', kind: 'convention' }],
+      [{ fact: 'Global TypeScript fact', kind: 'convention', files: [] }],
       'session-1',
       'global',
     );
     await store.addQueryWithFacts(
       'Project TypeScript info',
-      [{ fact: 'Project-specific TypeScript config', kind: 'convention' }],
+      [{ fact: 'Project-specific TypeScript config', kind: 'convention', files: [] }],
       'session-1',
       'my-project',
     );
@@ -89,7 +89,7 @@ describe('MemoryStore per-project scoping', () => {
   it('deletes memory by query ID', async () => {
     const action = await store.addQueryWithFacts(
       'To be deleted',
-      [{ fact: 'To be deleted', kind: 'fact' }],
+      [{ fact: 'To be deleted', kind: 'fact', files: [] }],
       'session-1',
       'my-project',
     );
@@ -99,16 +99,21 @@ describe('MemoryStore per-project scoping', () => {
   });
 
   it('lists memories from specific project', async () => {
-    await store.addQueryWithFacts('G1', [{ fact: 'Global fact', kind: 'fact' }], 's1', 'global');
+    await store.addQueryWithFacts(
+      'G1',
+      [{ fact: 'Global fact', kind: 'fact', files: [] }],
+      's1',
+      'global',
+    );
     await store.addQueryWithFacts(
       'P1',
-      [{ fact: 'Project fact', kind: 'fact' }],
+      [{ fact: 'Project fact', kind: 'fact', files: [] }],
       's1',
       'my-project',
     );
     await store.addQueryWithFacts(
       'O1',
-      [{ fact: 'Other project fact', kind: 'fact' }],
+      [{ fact: 'Other project fact', kind: 'fact', files: [] }],
       's1',
       'other-project',
     );

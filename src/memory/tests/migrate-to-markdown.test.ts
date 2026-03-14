@@ -50,12 +50,14 @@ describe('migrateToMarkdown', () => {
           id: randomUUID(),
           fact_text: 'Uses strict mode',
           kind: 'convention',
+          files: [],
           created_at: '2026-03-14T10:00:00.000Z',
         },
         {
           id: randomUUID(),
           fact_text: 'ESM only',
           kind: 'decision',
+          files: [],
           created_at: '2026-03-14T10:00:00.000Z',
         },
       ],
@@ -95,7 +97,7 @@ describe('migrateToMarkdown', () => {
         project: 'global',
         created_at: new Date().toISOString(),
       },
-      [{ id: randomUUID(), fact_text: 'fact', kind: 'fact', created_at: new Date().toISOString() }],
+      [{ id: randomUUID(), fact_text: 'fact', kind: 'fact', files: [], created_at: new Date().toISOString() }],
     );
     oldDb.close();
 
@@ -125,6 +127,7 @@ describe('migrateToMarkdown', () => {
           id: randomUUID(),
           fact_text: 'a fact',
           kind: 'fact',
+          files: [],
           created_at: new Date().toISOString(),
         },
       ],
@@ -153,7 +156,7 @@ describe('migrateToMarkdown', () => {
         project: 'global',
         created_at: new Date().toISOString(),
       },
-      [{ id: randomUUID(), fact_text: 'fact', kind: 'fact', created_at: new Date().toISOString() }],
+      [{ id: randomUUID(), fact_text: 'fact', kind: 'fact', files: [], created_at: new Date().toISOString() }],
     );
     oldDb.close();
 

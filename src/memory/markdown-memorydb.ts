@@ -142,6 +142,26 @@ export class MarkdownMemoryDB implements MemoryDB {
       .run(mtime, queryId);
   }
 
+  replaceFactsForQuery(queryId: string, facts: Omit<FactRecord, 'query_id'>[]): void {
+    const filePath = this.getFilePath(queryId);
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const memoryFile = parseMemoryFile(content);
+    if (!memoryFile) {
+      throw new MemoryError(
+        `Cannot replace facts: memory file for ${queryId} is missing or corrupt`,
+      );
+    }
+
+    memoryFile.facts = facts.map((f) => ({ kind: f.kind, text: f.fact_text }));
+
+    writeFileAtomic(filePath, serializeMemoryFile(memoryFile));
+
+    const mtime = statSync(filePath).mtimeMs;
+    this.cacheDb
+      .prepare('UPDATE query_vectors SET file_mtime = ? WHERE id = ?')
+      .run(mtime, queryId);
+  }
+
   // --- Search operations (use vector cache) ---
 
   searchByQuery(queryVector: number[], project?: string, limit = 10): QuerySearchHit[] {
@@ -510,6 +530,7 @@ export class MarkdownMemoryDB implements MemoryDB {
       query_id: memoryFile.id,
       fact_text: fact.text,
       kind: fact.kind,
+      files: [],
       created_at: memoryFile.createdAt,
     }));
   }

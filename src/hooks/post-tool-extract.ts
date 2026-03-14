@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 /**
  * PostToolUse automatic memory extraction.
- * Replaces the nudge-based memory-nudge.sh approach.
  *
- * Reads PostToolUse stdin JSON (includes tool_response), pattern-matches on outcomes,
- * and stores facts directly via MemoryStore — no Claude involvement required.
+ * Reads PostToolUse stdin JSON (includes tool_response), extracts facts,
+ * and buffers them for LLM-based consolidation via buffer-runner.
  *
- * Matches: WebFetch | Bash
+ * Captures: Read, Edit, Write, Grep, Glob (file-context) + WebFetch, Bash (tool-output)
  */
 
 import { execSync, spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { ExtractedFact } from '../memory/types.js';
+import type { ExtractedFact, BufferSource } from '../memory/types.js';
 
 const FLUSH_THRESHOLD = 8; // Matches buffer.ts — inlined to avoid pulling in better-sqlite3 at module load
 
@@ -21,6 +20,19 @@ const __dirname = path.dirname(__filename);
 const BUFFER_RUNNER_PATH = path.join(__dirname, '..', 'memory', 'buffer-runner.js');
 
 const MAX_RESPONSE_SIZE = 10_000; // Skip extraction for large responses (data dumps)
+const MAX_RAW_OUTPUT_SIZE = 2_000; // Truncate raw output stored in buffer for trace
+
+/** Noise patterns to filter out of Bash output before considering it an error */
+const NOISE_PATTERNS = [
+  /conda:?\s*(command\s+not\s+found|not\s+initialized)/i,
+  /nvm:?\s*(command\s+not\s+found|not\s+compatible)/i,
+  /rbenv:?\s*command\s+not\s+found/i,
+  /pyenv:?\s*command\s+not\s+found/i,
+  /warning:\s*CRLF\s+will\s+be\s+replaced/i,
+  /warning:\s*LF\s+will\s+be\s+replaced/i,
+  /\bCRLF\b.*\bLF\b/i,
+  /bash:.*:\s*command\s+not\s+found$/im,
+];
 
 interface PostToolUseInput {
   session_id?: string;
@@ -30,19 +42,24 @@ interface PostToolUseInput {
   tool_response?: unknown;
 }
 
+export interface ExtractedToolFact extends ExtractedFact {
+  source: BufferSource;
+}
+
+const SUPPORTED_TOOLS = new Set(['Read', 'Edit', 'Write', 'Grep', 'Glob', 'WebFetch', 'Bash']);
+
 export async function run(): Promise<void> {
   let input: PostToolUseInput;
   try {
     const raw = await readStdin();
     input = JSON.parse(raw) as PostToolUseInput;
   } catch {
-    // Can't parse stdin — exit silently
     writeOutput();
     return;
   }
 
   const toolName = input.tool_name ?? '';
-  if (toolName !== 'WebFetch' && toolName !== 'Bash') {
+  if (!SUPPORTED_TOOLS.has(toolName)) {
     writeOutput();
     return;
   }
@@ -70,9 +87,11 @@ export async function run(): Promise<void> {
     const { MemoryBuffer } = await import('../memory/buffer.js');
     const buffer = new MemoryBuffer(getBufferDbPath());
 
-    // Write each fact to the buffer instead of directly to the store
+    const rawOutput = responseStr.slice(0, MAX_RAW_OUTPUT_SIZE);
+
     for (const fact of facts) {
-      buffer.add(sessionId, fact.fact, 'post-tool-extract', toolName, project);
+      const filePaths = fact.files.length > 0 ? JSON.stringify(fact.files) : null;
+      buffer.add(sessionId, fact.fact, fact.source, toolName, project, filePaths, rawOutput);
     }
 
     // Check if we should trigger consolidation
@@ -87,26 +106,85 @@ export async function run(): Promise<void> {
   writeOutput();
 }
 
-function extractFacts(
+export function extractFacts(
   toolName: string,
   toolInput: Record<string, unknown>,
   responseStr: string,
-): ExtractedFact[] {
-  const facts: ExtractedFact[] = [];
-
-  if (toolName === 'WebFetch') {
-    const url = typeof toolInput.url === 'string' ? toolInput.url : '';
-    facts.push(...extractWebFetchFacts(url, responseStr));
-  } else if (toolName === 'Bash') {
-    const command = typeof toolInput.command === 'string' ? toolInput.command : '';
-    facts.push(...extractBashFacts(command, responseStr));
+): ExtractedToolFact[] {
+  switch (toolName) {
+    case 'Read':
+      return extractReadFacts(toolInput);
+    case 'Edit':
+      return extractEditFacts(toolInput);
+    case 'Write':
+      return extractWriteFacts(toolInput);
+    case 'Grep':
+      return extractGrepFacts(toolInput);
+    case 'Glob':
+      return extractGlobFacts(toolInput);
+    case 'WebFetch':
+      return extractWebFetchFacts(toolInput, responseStr);
+    case 'Bash':
+      return extractBashFacts(toolInput, responseStr);
+    default:
+      return [];
   }
-
-  return facts;
 }
 
-function extractWebFetchFacts(url: string, responseStr: string): ExtractedFact[] {
-  const facts: ExtractedFact[] = [];
+function extractReadFacts(toolInput: Record<string, unknown>): ExtractedToolFact[] {
+  const filePath = typeof toolInput.file_path === 'string' ? toolInput.file_path : '';
+  if (!filePath) return [];
+  return [
+    { fact: `Read file: ${filePath}`, kind: 'fact', files: [filePath], source: 'file-context' },
+  ];
+}
+
+function extractEditFacts(toolInput: Record<string, unknown>): ExtractedToolFact[] {
+  const filePath = typeof toolInput.file_path === 'string' ? toolInput.file_path : '';
+  if (!filePath) return [];
+  return [
+    { fact: `Edited file: ${filePath}`, kind: 'fact', files: [filePath], source: 'file-context' },
+  ];
+}
+
+function extractWriteFacts(toolInput: Record<string, unknown>): ExtractedToolFact[] {
+  const filePath = typeof toolInput.file_path === 'string' ? toolInput.file_path : '';
+  if (!filePath) return [];
+  return [
+    { fact: `Wrote file: ${filePath}`, kind: 'fact', files: [filePath], source: 'file-context' },
+  ];
+}
+
+function extractGrepFacts(toolInput: Record<string, unknown>): ExtractedToolFact[] {
+  const pattern = typeof toolInput.pattern === 'string' ? toolInput.pattern : '';
+  const searchPath = typeof toolInput.path === 'string' ? toolInput.path : '';
+  if (!pattern) return [];
+  const files = searchPath ? [searchPath] : [];
+  const suffix = searchPath ? ` in ${searchPath}` : '';
+  return [
+    { fact: `Searched for '${pattern}'${suffix}`, kind: 'fact', files, source: 'file-context' },
+  ];
+}
+
+function extractGlobFacts(toolInput: Record<string, unknown>): ExtractedToolFact[] {
+  const pattern = typeof toolInput.pattern === 'string' ? toolInput.pattern : '';
+  if (!pattern) return [];
+  return [
+    {
+      fact: `Searched for files matching '${pattern}'`,
+      kind: 'fact',
+      files: [],
+      source: 'file-context',
+    },
+  ];
+}
+
+function extractWebFetchFacts(
+  toolInput: Record<string, unknown>,
+  responseStr: string,
+): ExtractedToolFact[] {
+  const url = typeof toolInput.url === 'string' ? toolInput.url : '';
+  const facts: ExtractedToolFact[] = [];
   const lower = responseStr.toLowerCase();
 
   // Detect 404 / not found
@@ -119,6 +197,8 @@ function extractWebFetchFacts(url: string, responseStr: string): ExtractedFact[]
       facts.push({
         fact: `URL ${url} returned 404 / not found`,
         kind: 'fact',
+        files: [],
+        source: 'tool-output',
       });
     }
     return facts;
@@ -130,6 +210,8 @@ function extractWebFetchFacts(url: string, responseStr: string): ExtractedFact[]
     facts.push({
       fact: `URL ${url} redirects to ${redirectMatch[1]}`,
       kind: 'fact',
+      files: [],
+      source: 'tool-output',
     });
     return facts;
   }
@@ -140,6 +222,8 @@ function extractWebFetchFacts(url: string, responseStr: string): ExtractedFact[]
     facts.push({
       fact: `Fetching ${url} failed: ${snippet}`,
       kind: 'fact',
+      files: [],
+      source: 'tool-output',
     });
     return facts;
   }
@@ -151,6 +235,8 @@ function extractWebFetchFacts(url: string, responseStr: string): ExtractedFact[]
       facts.push({
         fact: `Docs at ${url}: ${snippet}`,
         kind: 'fact',
+        files: [],
+        source: 'tool-output',
       });
     }
   }
@@ -158,21 +244,36 @@ function extractWebFetchFacts(url: string, responseStr: string): ExtractedFact[]
   return facts;
 }
 
-function extractBashFacts(command: string, responseStr: string): ExtractedFact[] {
-  const facts: ExtractedFact[] = [];
-  const lower = responseStr.toLowerCase();
+function extractBashFacts(
+  toolInput: Record<string, unknown>,
+  responseStr: string,
+): ExtractedToolFact[] {
+  const command = typeof toolInput.command === 'string' ? toolInput.command : '';
+  const facts: ExtractedToolFact[] = [];
+
+  // Strip noisy shell environment lines before analyzing
+  const cleanedResponse = stripNoiseLines(responseStr);
+
+  // If everything was noise, skip
+  if (cleanedResponse.trim().length === 0) return facts;
 
   const isError =
-    /(?:error|fail|not.found|command not found|ENOENT|EACCES|no such file)/i.test(responseStr) ||
-    lower.includes('exit code') ||
-    lower.includes('permission denied');
+    /(?:error|fail|not.found|command not found|ENOENT|EACCES|no such file)/i.test(
+      cleanedResponse,
+    ) ||
+    cleanedResponse.toLowerCase().includes('exit code') ||
+    cleanedResponse.toLowerCase().includes('permission denied');
 
   if (isError) {
-    const snippet = responseStr.slice(0, 200).replace(/\n/g, ' ').trim();
+    const snippet = cleanedResponse.slice(0, 200).replace(/\n/g, ' ').trim();
     const shortCmd = command.slice(0, 100);
+    // Extract file paths from command
+    const files = extractFilePathsFromCommand(command);
     facts.push({
       fact: `Command '${shortCmd}' failed: ${snippet}`,
       kind: 'fact',
+      files,
+      source: 'tool-output',
     });
     return facts;
   }
@@ -186,6 +287,8 @@ function extractBashFacts(command: string, responseStr: string): ExtractedFact[]
     facts.push({
       fact: `Installed ${pkg} via ${manager}`,
       kind: 'fact',
+      files: [],
+      source: 'tool-output',
     });
     return facts;
   }
@@ -193,13 +296,28 @@ function extractBashFacts(command: string, responseStr: string): ExtractedFact[]
   // Detect config commands (git config, npm config, etc.)
   if (/\bconfig\b/.test(command)) {
     const shortCmd = command.slice(0, 120).replace(/\n/g, ' ').trim();
-    facts.push({
-      fact: `Configured: ${shortCmd}`,
-      kind: 'fact',
-    });
+    facts.push({ fact: `Configured: ${shortCmd}`, kind: 'fact', files: [], source: 'tool-output' });
   }
 
   return facts;
+}
+
+function stripNoiseLines(responseStr: string): string {
+  return responseStr
+    .split('\n')
+    .filter((line) => !NOISE_PATTERNS.some((p) => p.test(line)))
+    .join('\n');
+}
+
+function extractFilePathsFromCommand(command: string): string[] {
+  // Simple heuristic: find things that look like file paths
+  const pathRegex = /(?:^|\s)((?:\/|\.\/|\.\.\/)[^\s;|&>]+)/g;
+  const paths: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = pathRegex.exec(command)) !== null) {
+    paths.push(match[1]);
+  }
+  return paths;
 }
 
 function detectProject(cwd: string): string {

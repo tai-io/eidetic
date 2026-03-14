@@ -14,11 +14,12 @@
     "!dist/__tests__/**",
     "!dist/**/tests/**",
     "!dist/e2e/**",
-    "dist/messages.yaml"
+    "dist/messages.yaml",
+    "dist/memory/prompts.yaml"
   ],
   "scripts": {
     "prebuild": "tsx scripts/generate-build-info.ts",
-    "build": "tsc && node -e \"require('fs').copyFileSync('src/messages.yaml','dist/messages.yaml')\"",
+    "build": "tsc && node -e \"require('fs').copyFileSync('src/messages.yaml','dist/messages.yaml');require('fs').mkdirSync('dist/memory',{recursive:true});require('fs').copyFileSync('src/memory/prompts.yaml','dist/memory/prompts.yaml')\"",
     "dev": "tsx --watch src/index.ts",
     "start": "node dist/index.js",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",

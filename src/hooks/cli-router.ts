@@ -12,6 +12,11 @@ export async function runHook(event: string | undefined): Promise<void> {
       await run();
       break;
     }
+    case 'plan-mode-capture': {
+      const { run } = await import('./plan-mode-capture.js');
+      await run();
+      break;
+    }
     case 'precompact':
     case 'session-end': {
       const { run } = await import('../precompact/hook.js');
