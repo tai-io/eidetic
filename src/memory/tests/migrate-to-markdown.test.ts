@@ -97,7 +97,15 @@ describe('migrateToMarkdown', () => {
         project: 'global',
         created_at: new Date().toISOString(),
       },
-      [{ id: randomUUID(), fact_text: 'fact', kind: 'fact', files: [], created_at: new Date().toISOString() }],
+      [
+        {
+          id: randomUUID(),
+          fact_text: 'fact',
+          kind: 'fact',
+          files: [],
+          created_at: new Date().toISOString(),
+        },
+      ],
     );
     oldDb.close();
 
@@ -156,7 +164,15 @@ describe('migrateToMarkdown', () => {
         project: 'global',
         created_at: new Date().toISOString(),
       },
-      [{ id: randomUUID(), fact_text: 'fact', kind: 'fact', files: [], created_at: new Date().toISOString() }],
+      [
+        {
+          id: randomUUID(),
+          fact_text: 'fact',
+          kind: 'fact',
+          files: [],
+          created_at: new Date().toISOString(),
+        },
+      ],
     );
     oldDb.close();
 
