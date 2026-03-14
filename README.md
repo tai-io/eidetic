@@ -13,8 +13,7 @@ Persistent memory for Claude Code. Store knowledge, recall by meaning, pick up w
 
 ```bash
 export OPENAI_API_KEY=sk-...
-npm install -g @tai-io/eidetic
-claude mcp add -s user -e "OPENAI_API_KEY=$OPENAI_API_KEY" -- eidetic npx @tai-io/eidetic
+claude plugin add @tai-io/eidetic
 ```
 
 ```
