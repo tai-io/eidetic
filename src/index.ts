@@ -88,9 +88,9 @@ async function main() {
     );
   }
 
-  // MCP SDK constructor is loosely typed
-  // eslint-disable-next-line @typescript-eslint/no-deprecated, @typescript-eslint/no-unsafe-assignment
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- MCP SDK is loosely typed
   const server = new Server(
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     { name: '@tai-io/eidetic', version: BUILD_VERSION },
     { capabilities: { tools: {} } },
   );
