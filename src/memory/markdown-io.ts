@@ -66,8 +66,8 @@ export function parseMemoryFile(content: string): MemoryFile | null {
   if (!match) return null;
 
   const yamlBlock = match[1];
-  const body = match[2] ?? '';
   if (!yamlBlock) return null;
+  const body = match[2];
 
   let parsed: unknown;
   try {
