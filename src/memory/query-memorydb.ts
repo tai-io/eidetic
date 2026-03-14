@@ -15,39 +15,8 @@ import type {
   QueryWithFacts,
   MemoryKind,
 } from './types.js';
-
-// --- Vector helpers (reused from old sqlite-memorydb.ts) ---
-
-export function vectorToBlob(vector: number[]): Buffer {
-  const buf = Buffer.alloc(vector.length * 4);
-  for (let i = 0; i < vector.length; i++) {
-    buf.writeFloatLE(vector[i], i * 4);
-  }
-  return buf;
-}
-
-export function blobToVector(blob: Buffer): number[] {
-  const count = blob.length / 4;
-  const vector: number[] = new Array<number>(count);
-  for (let i = 0; i < count; i++) {
-    vector[i] = blob.readFloatLE(i * 4);
-  }
-  return vector;
-}
-
-export function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length || a.length === 0) return 0;
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
-}
+import type { MemoryDB } from './memorydb.js';
+import { vectorToBlob, blobToVector, cosineSimilarity } from './vector-utils.js';
 
 // --- Database types for row mapping ---
 
@@ -64,14 +33,14 @@ interface FactRow {
   id: string;
   query_id: string;
   fact_text: string;
-  kind: string;
+  kind: MemoryKind;
   files: string | null;
   created_at: string;
 }
 
 const RECENCY_HALF_LIFE_DAYS = 30;
 
-export class QueryMemoryDB {
+export class QueryMemoryDB implements MemoryDB {
   private db: Database.Database;
 
   constructor(dbPath: string) {
@@ -306,7 +275,7 @@ export class QueryMemoryDB {
       id: row.id,
       query_id: row.query_id,
       fact_text: row.fact_text,
-      kind: row.kind as MemoryKind,
+      kind: row.kind,
       files,
       created_at: row.created_at,
     };

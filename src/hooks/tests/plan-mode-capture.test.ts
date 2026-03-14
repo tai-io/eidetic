@@ -77,8 +77,7 @@ describe('Plan mode capture components', () => {
     const notesDir = path.join(tmpDir, 'notes');
 
     const index = readSessionIndex(notesDir);
-    const alreadyCaptured =
-      index?.sessions.some((s) => s.sessionId === 'new-session') ?? false;
+    const alreadyCaptured = index?.sessions.some((s) => s.sessionId === 'new-session') ?? false;
 
     expect(alreadyCaptured).toBe(false);
   });

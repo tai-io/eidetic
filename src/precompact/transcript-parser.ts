@@ -46,7 +46,7 @@ export async function parseTranscript(
 
     let parsed: TranscriptLine;
     try {
-      parsed = JSON.parse(line);
+      parsed = JSON.parse(line) as TranscriptLine;
     } catch {
       // Skip malformed JSON lines
       continue;
@@ -54,7 +54,7 @@ export async function parseTranscript(
 
     // Extract timestamps
     if (parsed.timestamp) {
-      if (!startTime) startTime = parsed.timestamp;
+      startTime ??= parsed.timestamp;
       endTime = parsed.timestamp;
     }
 

@@ -86,14 +86,14 @@ async function doWork(): Promise<HookResult> {
       { createEmbedding },
       { MemoryHistory },
       { MemoryStore },
-      { QueryMemoryDB },
-      { getMemoryDbPath, getMemoryStorePath },
+      { MarkdownMemoryDB },
+      { getMemoryDbPath, getMemoriesDir, getVectorCachePath },
     ] = await Promise.all([
       import('../config.js'),
       import('../embedding/factory.js'),
       import('../memory/history.js'),
       import('../memory/store.js'),
-      import('../memory/query-memorydb.js'),
+      import('../memory/markdown-memorydb.js'),
       import('../paths.js'),
     ]);
 
@@ -101,7 +101,8 @@ async function doWork(): Promise<HookResult> {
     const embedding = createEmbedding(config);
     await embedding.initialize();
 
-    const memorydb = new QueryMemoryDB(getMemoryStorePath());
+    const memoriesDir = getMemoriesDir(projectName);
+    const memorydb = new MarkdownMemoryDB(memoriesDir, getVectorCachePath(memoriesDir));
     const history = new MemoryHistory(getMemoryDbPath());
     const store = new MemoryStore(embedding, memorydb, history);
 
