@@ -17,7 +17,7 @@ const MAX_FILES_SHOWN = 5;
 export function run(): void {
   try {
     // Get cwd from environment (set by Claude Code) or detect from git
-    const cwd = process.env.CLAUDE_CWD || process.cwd();
+    const cwd = process.env.CLAUDE_CWD ?? process.cwd();
 
     // Detect project root from git
     const projectPath = detectProjectRoot(cwd);

@@ -27,7 +27,7 @@ export function updateSessionIndex(
   if (fs.existsSync(indexPath)) {
     try {
       const content = fs.readFileSync(indexPath, 'utf-8');
-      index = JSON.parse(content);
+      index = JSON.parse(content) as SessionIndex;
     } catch {
       // Corrupted index, start fresh
       index = createEmptyIndex(session.projectName);
@@ -70,7 +70,7 @@ export function readSessionIndex(notesDir: string): SessionIndex | null {
   }
   try {
     const content = fs.readFileSync(indexPath, 'utf-8');
-    return JSON.parse(content);
+    return JSON.parse(content) as SessionIndex;
   } catch {
     return null;
   }
