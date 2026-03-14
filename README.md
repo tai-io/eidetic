@@ -11,9 +11,15 @@ Persistent memory for Claude Code. Store knowledge, recall by meaning, pick up w
 
 ## Quick Start
 
+Set your OpenAI API key, then install the plugin inside Claude Code:
+
 ```bash
 export OPENAI_API_KEY=sk-...
-claude plugin add @tai-io/eidetic
+```
+
+```
+/plugin marketplace add tai-io/eidetic
+/plugin install eidetic@tai-io
 ```
 
 ```
@@ -56,8 +62,11 @@ Session hooks watch your conversations and extract durable knowledge (decisions,
 
 ### Plugin (recommended)
 
-```bash
-claude plugin add @tai-io/eidetic
+Inside a Claude Code session:
+
+```
+/plugin marketplace add tai-io/eidetic
+/plugin install eidetic@tai-io
 ```
 
 The plugin starts the MCP server, installs skills, and configures hooks automatically.
