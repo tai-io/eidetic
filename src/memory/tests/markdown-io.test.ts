@@ -204,4 +204,52 @@ describe('serializeMemoryFile', () => {
     expect(parsed).not.toBeNull();
     expect(parsed!.facts).toHaveLength(0);
   });
+
+  it('includes tags when explicitly set', () => {
+    const withTags: MemoryFile = {
+      ...memory,
+      tags: ['convention', 'decision'],
+    };
+    const output = serializeMemoryFile(withTags);
+    expect(output).toContain('tags:');
+    const parsed = parseMemoryFile(output);
+    expect(parsed!.tags).toEqual(['convention', 'decision']);
+  });
+
+  it('includes aliases when explicitly set', () => {
+    const withAliases: MemoryFile = {
+      ...memory,
+      aliases: ['How does auth work in this project?'],
+    };
+    const output = serializeMemoryFile(withAliases);
+    expect(output).toContain('aliases:');
+    const parsed = parseMemoryFile(output);
+    expect(parsed!.aliases).toEqual(['How does auth work in this project?']);
+  });
+
+  it('omits tags/aliases from output when not set', () => {
+    const output = serializeMemoryFile(memory);
+    expect(output).not.toContain('tags:');
+    expect(output).not.toContain('aliases:');
+  });
+
+  it('preserves explicit tags and aliases on roundtrip', () => {
+    const withExplicit: MemoryFile = {
+      ...memory,
+      tags: ['custom-tag', 'another'],
+      aliases: ['alt name'],
+    };
+    const output = serializeMemoryFile(withExplicit);
+    const parsed = parseMemoryFile(output);
+    expect(parsed!.tags).toEqual(['custom-tag', 'another']);
+    expect(parsed!.aliases).toEqual(['alt name']);
+  });
+
+  it('parses file without tags/aliases as undefined', () => {
+    // VALID_FILE at top of this file has no tags/aliases
+    const parsed = parseMemoryFile(VALID_FILE);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.tags).toBeUndefined();
+    expect(parsed!.aliases).toBeUndefined();
+  });
 });

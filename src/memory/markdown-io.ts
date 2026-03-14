@@ -8,6 +8,8 @@
  * project: <project-name>
  * session_id: <session-id>
  * created_at: "ISO timestamp"
+ * tags: [fact, decision]           # optional, Obsidian-compatible
+ * aliases: ["query text"]          # optional, Obsidian-compatible
  * ---
  *
  * - [kind] fact text
@@ -32,6 +34,8 @@ const frontmatterSchema = z.object({
   project: z.string().min(1),
   session_id: z.string().min(1),
   created_at: z.string().min(1),
+  tags: z.array(z.string()).optional(),
+  aliases: z.array(z.string()).optional(),
 });
 
 export interface MemoryFileFact {
@@ -46,6 +50,8 @@ export interface MemoryFile {
   sessionId: string;
   createdAt: string;
   facts: MemoryFileFact[];
+  tags?: string[];
+  aliases?: string[];
 }
 
 const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
@@ -57,9 +63,10 @@ const FACT_LINE_REGEX = /^- \[(\w+)] (.+)$/;
  */
 export function parseMemoryFile(content: string): MemoryFile | null {
   const match = FRONTMATTER_REGEX.exec(content);
-  if (!match) return null;
+  if (!match || match.length < 3) return null;
 
-  const [, yamlBlock, body] = match;
+  const yamlBlock = match[1] as string;
+  const body = match[2] as string;
 
   let parsed: unknown;
   try {
@@ -79,9 +86,10 @@ export function parseMemoryFile(content: string): MemoryFile | null {
     if (!trimmed) continue;
 
     const factMatch = FACT_LINE_REGEX.exec(trimmed);
-    if (!factMatch) continue;
+    if (!factMatch || factMatch.length < 3) continue;
 
-    const [, kind, text] = factMatch;
+    const kind = factMatch[1] as string;
+    const text = factMatch[2] as string;
     if (MEMORY_KINDS.includes(kind as MemoryKind)) {
       facts.push({ kind: kind as MemoryKind, text });
     }
@@ -94,6 +102,8 @@ export function parseMemoryFile(content: string): MemoryFile | null {
     sessionId: frontmatter.session_id,
     createdAt: frontmatter.created_at,
     facts,
+    tags: frontmatter.tags,
+    aliases: frontmatter.aliases,
   };
 }
 
@@ -101,16 +111,24 @@ export function parseMemoryFile(content: string): MemoryFile | null {
  * Serialize a MemoryFile to the markdown format.
  */
 export function serializeMemoryFile(memory: MemoryFile): string {
-  const frontmatter = stringifyYaml(
-    {
-      id: memory.id,
-      query: memory.query,
-      project: memory.project,
-      session_id: memory.sessionId,
-      created_at: memory.createdAt,
-    },
-    { lineWidth: 0 },
-  ).trimEnd();
+  const frontmatterObj: Record<string, unknown> = {
+    id: memory.id,
+    query: memory.query,
+    project: memory.project,
+    session_id: memory.sessionId,
+    created_at: memory.createdAt,
+  };
+
+  // Only include tags/aliases if present — avoids re-injecting defaults
+  // when re-serializing a user-edited file that removed them
+  if (memory.tags) {
+    frontmatterObj.tags = memory.tags;
+  }
+  if (memory.aliases) {
+    frontmatterObj.aliases = memory.aliases;
+  }
+
+  const frontmatter = stringifyYaml(frontmatterObj, { lineWidth: 0 }).trimEnd();
 
   const factLines = memory.facts.map((f) => `- [${f.kind}] ${f.text}`);
 

@@ -47,14 +47,17 @@ describe('MarkdownMemoryDB', () => {
   }
 
   describe('addQueryWithFacts', () => {
-    it('creates a markdown file on disk', async () => {
+    it('creates a slug-named markdown file on disk', async () => {
       const query = await makeQuery();
       db.addQueryWithFacts(query, makeFacts(['Auth uses JWT tokens']));
 
-      const filePath = join(memoriesDir, `${query.id}.md`);
-      expect(existsSync(filePath)).toBe(true);
+      const filePath = db.getFilePathForId(query.id);
+      expect(filePath).toBeDefined();
+      expect(existsSync(filePath!)).toBe(true);
+      // Filename should be a slug, not a UUID
+      expect(filePath!).toContain('how-does-auth-work.md');
 
-      const content = readFileSync(filePath, 'utf-8');
+      const content = readFileSync(filePath!, 'utf-8');
       const parsed = parseMemoryFile(content);
       expect(parsed).not.toBeNull();
       expect(parsed!.id).toBe(query.id);
@@ -71,6 +74,18 @@ describe('MarkdownMemoryDB', () => {
       expect(results).toHaveLength(1);
       expect(results[0].query.id).toBe(query.id);
     });
+
+    it('resolves slug collisions with suffix', async () => {
+      const q1 = await makeQuery({ text: 'How does auth work?' });
+      const q2 = await makeQuery({ text: 'How does auth work?' });
+      db.addQueryWithFacts(q1, makeFacts(['Fact 1']));
+      db.addQueryWithFacts(q2, makeFacts(['Fact 2']));
+
+      const path1 = db.getFilePathForId(q1.id);
+      const path2 = db.getFilePathForId(q2.id);
+      expect(path1).toContain('how-does-auth-work.md');
+      expect(path2).toContain('how-does-auth-work-2.md');
+    });
   });
 
   describe('addFactsToQuery', () => {
@@ -80,7 +95,7 @@ describe('MarkdownMemoryDB', () => {
 
       db.addFactsToQuery(query.id, makeFacts(['Second fact']));
 
-      const filePath = join(memoriesDir, `${query.id}.md`);
+      const filePath = db.getFilePathForId(query.id)!;
       const parsed = parseMemoryFile(readFileSync(filePath, 'utf-8'));
       expect(parsed!.facts).toHaveLength(2);
       expect(parsed!.facts[1].text).toBe('Second fact');
@@ -159,7 +174,7 @@ describe('MarkdownMemoryDB', () => {
       db.addQueryWithFacts(query, makeFacts(['Original fact']));
 
       // Edit file externally
-      const filePath = join(memoriesDir, `${query.id}.md`);
+      const filePath = db.getFilePathForId(query.id)!;
       const content = readFileSync(filePath, 'utf-8');
       const parsed = parseMemoryFile(content)!;
       parsed.facts.push({ kind: 'decision', text: 'New external fact' });
@@ -177,7 +192,7 @@ describe('MarkdownMemoryDB', () => {
       db.addQueryWithFacts(query, makeFacts(['Original fact']));
 
       // Edit file externally
-      const filePath = join(memoriesDir, `${query.id}.md`);
+      const filePath = db.getFilePathForId(query.id)!;
       const content = readFileSync(filePath, 'utf-8');
       const parsed = parseMemoryFile(content)!;
       parsed.facts.push({ kind: 'decision', text: 'New external fact' });
@@ -196,7 +211,7 @@ describe('MarkdownMemoryDB', () => {
       db.addQueryWithFacts(query, makeFacts(['Some fact']));
 
       // Delete file externally
-      unlinkSync(join(memoriesDir, `${query.id}.md`));
+      unlinkSync(db.getFilePathForId(query.id)!);
 
       // Force staleness check
       (db as unknown as { lastStalenessCheck: number }).lastStalenessCheck = 0;
@@ -211,9 +226,10 @@ describe('MarkdownMemoryDB', () => {
       const query = await makeQuery();
       db.addQueryWithFacts(query, makeFacts(['Some fact']));
 
+      const filePath = db.getFilePathForId(query.id)!;
       const deleted = db.deleteQuery(query.id);
       expect(deleted).toBe(true);
-      expect(existsSync(join(memoriesDir, `${query.id}.md`))).toBe(false);
+      expect(existsSync(filePath)).toBe(false);
 
       const results = db.searchByQuery(query.query_vector, undefined, 10);
       expect(results).toHaveLength(0);
@@ -346,7 +362,7 @@ describe('MarkdownMemoryDB', () => {
         createdAt: new Date().toISOString(),
         facts: [{ kind: 'fact', text: 'A fact' }],
       };
-      writeFileSync(join(memoriesDir, `${id}.md`), serializeMemoryFile(memoryFile));
+      writeFileSync(join(memoriesDir, `manually-created.md`), serializeMemoryFile(memoryFile));
 
       // Force staleness check
       (db as unknown as { lastStalenessCheck: number }).lastStalenessCheck = 0;

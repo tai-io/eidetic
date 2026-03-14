@@ -4,7 +4,7 @@
  * Markdown files are the source of truth; SQLite is a rebuildable vector cache
  * used only for semantic search. Users can read, edit, or delete `.md` files directly.
  *
- * Storage: ~/.eidetic/memories/<project>/<uuid>.md
+ * Storage: ~/.eidetic/memories/<project>/<slug>.md  (slug derived from query text)
  * Cache:   ~/.eidetic/memories/<project>/.vector-cache.db
  */
 
@@ -15,10 +15,14 @@ import Database from 'better-sqlite3';
 
 import type { MemoryDB } from './memorydb.js';
 import type { QueryRecord, FactRecord, QuerySearchHit, QueryWithFacts } from './types.js';
+import { MemoryError } from '../errors.js';
 import { vectorToBlob, blobToVector, cosineSimilarity } from './vector-utils.js';
 import { parseMemoryFile, serializeMemoryFile } from './markdown-io.js';
 import type { MemoryFile, MemoryFileFact } from './markdown-io.js';
 import { writeFileAtomic } from '../precompact/utils.js';
+import { slugify, resolveSlugCollision } from './slug.js';
+import { migrateToSlugs } from './migrate-to-slugs.js';
+import { ensureObsidianVault } from './obsidian.js';
 
 const RECENCY_HALF_LIFE_DAYS = 30;
 const STALENESS_CHECK_INTERVAL_MS = 5000;
@@ -34,6 +38,8 @@ interface VectorCacheRow {
 export class MarkdownMemoryDB implements MemoryDB {
   private cacheDb: Database.Database;
   private lastStalenessCheck = 0;
+  private idToPath = new Map<string, string>();
+  private slugsInUse = new Set<string>();
 
   constructor(
     private memoriesDir: string,
@@ -44,6 +50,9 @@ export class MarkdownMemoryDB implements MemoryDB {
     this.cacheDb = new Database(cachePath);
     this.cacheDb.pragma('journal_mode = WAL');
     this.initCache();
+    migrateToSlugs(memoriesDir);
+    this.buildIdToPathMap();
+    ensureObsidianVault(path.dirname(memoriesDir));
   }
 
   private initCache(): void {
@@ -58,23 +67,55 @@ export class MarkdownMemoryDB implements MemoryDB {
     `);
   }
 
+  /**
+   * Scan all .md files, parse frontmatter, populate idToPath and slugsInUse maps.
+   */
+  private buildIdToPathMap(): void {
+    this.idToPath.clear();
+    this.slugsInUse.clear();
+
+    for (const fileName of this.listMdFiles()) {
+      const filePath = path.join(this.memoriesDir, fileName);
+      const slug = path.basename(fileName, '.md');
+      this.slugsInUse.add(slug);
+
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const parsed = parseMemoryFile(content);
+        if (parsed) {
+          this.idToPath.set(parsed.id, filePath);
+        }
+      } catch {
+        // Skip unreadable files
+      }
+    }
+  }
+
   // --- Write operations (markdown is source of truth) ---
 
   addQueryWithFacts(
     query: Omit<QueryRecord, 'query_vector'> & { query_vector: number[] },
     facts: Omit<FactRecord, 'query_id'>[],
   ): void {
+    const factEntries = facts.map((f) => ({ kind: f.kind, text: f.fact_text }));
     const memoryFile: MemoryFile = {
       id: query.id,
       query: query.query_text,
       project: query.project,
       sessionId: query.session_id,
       createdAt: query.created_at,
-      facts: facts.map((f) => ({ kind: f.kind, text: f.fact_text })),
+      facts: factEntries,
+      tags: [...new Set(factEntries.map((f) => f.kind))].sort(),
+      aliases: [query.query_text],
     };
 
-    const filePath = this.getFilePath(query.id);
+    const baseSlug = slugify(query.query_text);
+    const slug = resolveSlugCollision(baseSlug, this.slugsInUse);
+    this.slugsInUse.add(slug);
+
+    const filePath = path.join(this.memoriesDir, `${slug}.md`);
     writeFileAtomic(filePath, serializeMemoryFile(memoryFile));
+    this.idToPath.set(query.id, filePath);
 
     const mtime = statSync(filePath).mtimeMs;
     this.upsertCacheEntry(query.id, query.query_vector, query.project, query.created_at, mtime);
@@ -84,7 +125,9 @@ export class MarkdownMemoryDB implements MemoryDB {
     const filePath = this.getFilePath(queryId);
     const content = fs.readFileSync(filePath, 'utf-8');
     const memoryFile = parseMemoryFile(content);
-    if (!memoryFile) return;
+    if (!memoryFile) {
+      throw new MemoryError(`Cannot add facts: memory file for ${queryId} is missing or corrupt`);
+    }
 
     for (const fact of facts) {
       memoryFile.facts.push({ kind: fact.kind, text: fact.fact_text });
@@ -124,18 +167,17 @@ export class MarkdownMemoryDB implements MemoryDB {
     scored.sort((a, b) => b.score - a.score);
     const topQueries = scored.slice(0, limit);
 
-    return topQueries
-      .map(({ row, score }) => {
-        const memoryFile = this.loadMemoryFile(row.id);
-        if (!memoryFile) return null;
-
-        return {
-          query: this.memoryFileToQueryRecord(memoryFile, blobToVector(row.query_vector)),
-          facts: this.memoryFileToFactRecords(memoryFile),
-          score,
-        };
-      })
-      .filter((hit): hit is QuerySearchHit => hit !== null);
+    const results: QuerySearchHit[] = [];
+    for (const { row, score } of topQueries) {
+      const memoryFile = this.loadMemoryFile(row.id);
+      if (!memoryFile) continue; // File deleted between cache check and read
+      results.push({
+        query: this.memoryFileToQueryRecord(memoryFile, blobToVector(row.query_vector)),
+        facts: this.memoryFileToFactRecords(memoryFile),
+        score,
+      });
+    }
+    return results;
   }
 
   findSimilarQuery(
@@ -178,20 +220,20 @@ export class MarkdownMemoryDB implements MemoryDB {
     const memoryFile = this.loadMemoryFile(queryId);
     if (!memoryFile) return null;
 
-    const cacheRow = this.cacheDb
-      .prepare('SELECT query_vector FROM query_vectors WHERE id = ?')
-      .get(queryId) as { query_vector: Buffer } | undefined;
-
-    const vector = cacheRow ? blobToVector(cacheRow.query_vector) : [];
+    const vector = this.tryGetCachedVector(queryId);
+    if (!vector) return null;
     return this.memoryFileToQueryRecord(memoryFile, vector);
   }
 
   deleteQuery(queryId: string): boolean {
-    const filePath = this.getFilePath(queryId);
-    if (!fs.existsSync(filePath)) return false;
+    const filePath = this.idToPath.get(queryId);
+    if (!filePath || !fs.existsSync(filePath)) return false;
 
+    const slug = path.basename(filePath, '.md');
     unlinkSync(filePath);
     this.cacheDb.prepare('DELETE FROM query_vectors WHERE id = ?').run(queryId);
+    this.idToPath.delete(queryId);
+    this.slugsInUse.delete(slug);
     return true;
   }
 
@@ -202,38 +244,38 @@ export class MarkdownMemoryDB implements MemoryDB {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, limit);
 
-    return projectFiles
-      .map((memoryFile) => {
-        let facts = this.memoryFileToFactRecords(memoryFile);
-        if (kind) {
-          facts = facts.filter((f) => f.kind === kind);
-        }
-        const cacheRow = this.cacheDb
-          .prepare('SELECT query_vector FROM query_vectors WHERE id = ?')
-          .get(memoryFile.id) as { query_vector: Buffer } | undefined;
-        const vector = cacheRow ? blobToVector(cacheRow.query_vector) : [];
-        return {
+    const results: QueryWithFacts[] = [];
+    for (const memoryFile of projectFiles) {
+      const vector = this.tryGetCachedVector(memoryFile.id);
+      if (!vector) continue;
+      let facts = this.memoryFileToFactRecords(memoryFile);
+      if (kind) {
+        facts = facts.filter((f) => f.kind === kind);
+      }
+      if (facts.length > 0) {
+        results.push({
           query: this.memoryFileToQueryRecord(memoryFile, vector),
           facts,
-        };
-      })
-      .filter((qf) => qf.facts.length > 0);
+        });
+      }
+    }
+    return results;
   }
 
   listAll(limit = 100): QueryWithFacts[] {
     const allFiles = this.loadAllMemoryFiles();
     const sorted = allFiles.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
 
-    return sorted.map((memoryFile) => {
-      const cacheRow = this.cacheDb
-        .prepare('SELECT query_vector FROM query_vectors WHERE id = ?')
-        .get(memoryFile.id) as { query_vector: Buffer } | undefined;
-      const vector = cacheRow ? blobToVector(cacheRow.query_vector) : [];
-      return {
+    const results: QueryWithFacts[] = [];
+    for (const memoryFile of sorted) {
+      const vector = this.tryGetCachedVector(memoryFile.id);
+      if (!vector) continue;
+      results.push({
         query: this.memoryFileToQueryRecord(memoryFile, vector),
         facts: this.memoryFileToFactRecords(memoryFile),
-      };
-    });
+      });
+    }
+    return results;
   }
 
   queryCount(project?: string): number {
@@ -269,10 +311,14 @@ export class MarkdownMemoryDB implements MemoryDB {
     }[];
 
     for (const entry of cacheEntries) {
-      const filePath = this.getFilePath(entry.id);
-      if (!fs.existsSync(filePath)) {
-        // File deleted — remove from cache
+      const filePath = this.idToPath.get(entry.id);
+      if (!filePath || !fs.existsSync(filePath)) {
+        // File deleted or path unknown — remove from cache, map, and slug set
+        if (filePath) {
+          this.slugsInUse.delete(path.basename(filePath, '.md'));
+        }
         this.cacheDb.prepare('DELETE FROM query_vectors WHERE id = ?').run(entry.id);
+        this.idToPath.delete(entry.id);
         continue;
       }
       const currentMtime = statSync(filePath).mtimeMs;
@@ -281,13 +327,33 @@ export class MarkdownMemoryDB implements MemoryDB {
       }
     }
 
-    // Check for new files not in cache
-    const files = this.listMdFiles();
+    // Scan disk for new/renamed files not in our id map
+    const knownPaths = new Set(this.idToPath.values());
     const cachedIds = new Set(cacheEntries.map((e) => e.id));
-    for (const fileName of files) {
-      const id = path.basename(fileName, '.md');
-      if (!cachedIds.has(id)) {
-        staleIds.push(id);
+    for (const fileName of this.listMdFiles()) {
+      const filePath = path.join(this.memoriesDir, fileName);
+      if (knownPaths.has(filePath)) continue;
+
+      // New or renamed file — parse frontmatter to get ID
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const parsed = parseMemoryFile(content);
+        if (parsed) {
+          // Clean up old slug if this ID was previously mapped to a different path
+          const oldPath = this.idToPath.get(parsed.id);
+          if (oldPath) {
+            this.slugsInUse.delete(path.basename(oldPath, '.md'));
+          }
+
+          const slug = path.basename(fileName, '.md');
+          this.idToPath.set(parsed.id, filePath);
+          this.slugsInUse.add(slug);
+          if (!cachedIds.has(parsed.id)) {
+            staleIds.push(parsed.id);
+          }
+        }
+      } catch {
+        // Skip unreadable files
       }
     }
 
@@ -300,7 +366,9 @@ export class MarkdownMemoryDB implements MemoryDB {
   updateCacheVector(id: string, queryVector: number[]): void {
     const filePath = this.getFilePath(id);
     const memoryFile = this.loadMemoryFile(id);
-    if (!memoryFile) return;
+    if (!memoryFile) {
+      throw new MemoryError(`Cannot update cache: memory file for ${id} is missing or corrupt`);
+    }
 
     const mtime = statSync(filePath).mtimeMs;
     this.upsertCacheEntry(id, queryVector, memoryFile.project, memoryFile.createdAt, mtime);
@@ -334,14 +402,48 @@ export class MarkdownMemoryDB implements MemoryDB {
     }
   }
 
+  // --- Public accessors for tests ---
+
+  /**
+   * Get the file path for a memory ID. Returns undefined if not in the map.
+   */
+  getFilePathForId(id: string): string | undefined {
+    return this.idToPath.get(id);
+  }
+
   // --- Private helpers ---
 
+  private getCachedVector(id: string): number[] {
+    const row = this.cacheDb
+      .prepare('SELECT query_vector FROM query_vectors WHERE id = ?')
+      .get(id) as VectorCacheRow | undefined;
+    if (!row) {
+      throw new MemoryError(`Vector cache missing entry for ${id} — rebuild cache`);
+    }
+    return blobToVector(row.query_vector);
+  }
+
+  /**
+   * Non-throwing variant — returns null if the cache entry is missing
+   * (e.g. file exists on disk but hasn't been embedded yet).
+   */
+  private tryGetCachedVector(id: string): number[] | null {
+    const row = this.cacheDb
+      .prepare('SELECT query_vector FROM query_vectors WHERE id = ?')
+      .get(id) as VectorCacheRow | undefined;
+    if (!row) return null;
+    return blobToVector(row.query_vector);
+  }
+
   private getFilePath(id: string): string {
-    return path.join(this.memoriesDir, `${id}.md`);
+    const mapped = this.idToPath.get(id);
+    if (mapped) return mapped;
+    throw new MemoryError(`No file path mapped for memory ID ${id}`);
   }
 
   private loadMemoryFile(id: string): MemoryFile | null {
-    const filePath = this.getFilePath(id);
+    const filePath = this.idToPath.get(id);
+    if (!filePath) return null;
     try {
       const content = fs.readFileSync(filePath, 'utf-8');
       return parseMemoryFile(content);

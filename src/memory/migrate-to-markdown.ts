@@ -29,7 +29,7 @@ interface MigrationFactRow {
   id: string;
   query_id: string;
   fact_text: string;
-  kind: string;
+  kind: MemoryKind;
   created_at: string;
 }
 
@@ -111,7 +111,7 @@ export function migrateToMarkdown(
       sessionId: query.session_id,
       createdAt: query.created_at,
       facts: facts.map((f) => ({
-        kind: f.kind as MemoryKind,
+        kind: f.kind,
         text: f.fact_text,
       })),
     };

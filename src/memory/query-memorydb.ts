@@ -18,9 +18,6 @@ import type {
 import type { MemoryDB } from './memorydb.js';
 import { vectorToBlob, blobToVector, cosineSimilarity } from './vector-utils.js';
 
-// Re-export for backward compatibility (external consumers may import from here)
-export { vectorToBlob, blobToVector, cosineSimilarity };
-
 // --- Database types for row mapping ---
 
 interface QueryRow {
@@ -36,7 +33,7 @@ interface FactRow {
   id: string;
   query_id: string;
   fact_text: string;
-  kind: string;
+  kind: MemoryKind;
   created_at: string;
 }
 
@@ -250,7 +247,7 @@ export class QueryMemoryDB implements MemoryDB {
       id: row.id,
       query_id: row.query_id,
       fact_text: row.fact_text,
-      kind: row.kind as MemoryKind,
+      kind: row.kind,
       created_at: row.created_at,
     };
   }
