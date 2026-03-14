@@ -63,10 +63,11 @@ const FACT_LINE_REGEX = /^- \[(\w+)] (.+)$/;
  */
 export function parseMemoryFile(content: string): MemoryFile | null {
   const match = FRONTMATTER_REGEX.exec(content);
-  if (!match || match.length < 3) return null;
+  if (!match) return null;
 
-  const yamlBlock = match[1] as string;
-  const body = match[2] as string;
+  const yamlBlock = match[1];
+  const body = match[2] ?? '';
+  if (!yamlBlock) return null;
 
   let parsed: unknown;
   try {
@@ -86,12 +87,15 @@ export function parseMemoryFile(content: string): MemoryFile | null {
     if (!trimmed) continue;
 
     const factMatch = FACT_LINE_REGEX.exec(trimmed);
-    if (!factMatch || factMatch.length < 3) continue;
+    if (!factMatch) continue;
 
-    const kind = factMatch[1] as string;
-    const text = factMatch[2] as string;
-    if (MEMORY_KINDS.includes(kind as MemoryKind)) {
-      facts.push({ kind: kind as MemoryKind, text });
+    const kind = factMatch[1];
+    const text = factMatch[2];
+    if (!kind || !text) continue;
+
+    const validKind = MEMORY_KINDS.find((k) => k === kind);
+    if (validKind) {
+      facts.push({ kind: validKind, text });
     }
   }
 
