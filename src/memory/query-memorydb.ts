@@ -65,6 +65,7 @@ interface FactRow {
   query_id: string;
   fact_text: string;
   kind: string;
+  files: string | null;
   created_at: string;
 }
 
@@ -97,6 +98,7 @@ export class QueryMemoryDB {
         query_id TEXT NOT NULL REFERENCES queries(id) ON DELETE CASCADE,
         fact_text TEXT NOT NULL,
         kind TEXT NOT NULL,
+        files TEXT,
         created_at TEXT NOT NULL
       );
 
@@ -113,7 +115,7 @@ export class QueryMemoryDB {
       'INSERT INTO queries (id, query_text, query_vector, session_id, project, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     );
     const insertFact = this.db.prepare(
-      'INSERT INTO facts (id, query_id, fact_text, kind, created_at) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO facts (id, query_id, fact_text, kind, files, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     );
 
     const vectorBlob = vectorToBlob(query.query_vector);
@@ -128,7 +130,8 @@ export class QueryMemoryDB {
         query.created_at,
       );
       for (const fact of facts) {
-        insertFact.run(fact.id, query.id, fact.fact_text, fact.kind, fact.created_at);
+        const filesJson = fact.files.length > 0 ? JSON.stringify(fact.files) : null;
+        insertFact.run(fact.id, query.id, fact.fact_text, fact.kind, filesJson, fact.created_at);
       }
     });
     tx();
@@ -136,12 +139,13 @@ export class QueryMemoryDB {
 
   addFactsToQuery(queryId: string, facts: Omit<FactRecord, 'query_id'>[]): void {
     const insertFact = this.db.prepare(
-      'INSERT INTO facts (id, query_id, fact_text, kind, created_at) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO facts (id, query_id, fact_text, kind, files, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     );
 
     const tx = this.db.transaction(() => {
       for (const fact of facts) {
-        insertFact.run(fact.id, queryId, fact.fact_text, fact.kind, fact.created_at);
+        const filesJson = fact.files.length > 0 ? JSON.stringify(fact.files) : null;
+        insertFact.run(fact.id, queryId, fact.fact_text, fact.kind, filesJson, fact.created_at);
       }
     });
     tx();
@@ -210,6 +214,22 @@ export class QueryMemoryDB {
     return best;
   }
 
+  replaceFactsForQuery(queryId: string, facts: Omit<FactRecord, 'query_id'>[]): void {
+    const deleteFacts = this.db.prepare('DELETE FROM facts WHERE query_id = ?');
+    const insertFact = this.db.prepare(
+      'INSERT INTO facts (id, query_id, fact_text, kind, files, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    );
+
+    const tx = this.db.transaction(() => {
+      deleteFacts.run(queryId);
+      for (const fact of facts) {
+        const filesJson = fact.files.length > 0 ? JSON.stringify(fact.files) : null;
+        insertFact.run(fact.id, queryId, fact.fact_text, fact.kind, filesJson, fact.created_at);
+      }
+    });
+    tx();
+  }
+
   deleteQuery(queryId: string): boolean {
     const result = this.db.prepare('DELETE FROM queries WHERE id = ?').run(queryId);
     return result.changes > 0;
@@ -274,11 +294,20 @@ export class QueryMemoryDB {
   }
 
   private rowToFactRecord(row: FactRow): FactRecord {
+    let files: string[] = [];
+    if (row.files) {
+      try {
+        files = JSON.parse(row.files) as string[];
+      } catch {
+        files = [];
+      }
+    }
     return {
       id: row.id,
       query_id: row.query_id,
       fact_text: row.fact_text,
       kind: row.kind as MemoryKind,
+      files,
       created_at: row.created_at,
     };
   }

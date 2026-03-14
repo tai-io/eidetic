@@ -11,8 +11,10 @@
  * 4. Clear extraction lock on completion (or on error, so retries work)
  */
 
+import { randomUUID } from 'node:crypto';
 import { MemoryBuffer } from './buffer.js';
 import { extractMemories } from './memory-extractor.js';
+import { consolidateFacts } from './memory-consolidator.js';
 import { getBufferDbPath } from '../paths.js';
 
 const STALE_ITEM_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -82,13 +84,55 @@ async function main(): Promise<void> {
       let totalFacts = 0;
       try {
         for (const group of result.groups) {
-          const action = await store.addQueryWithFacts(
-            group.query,
-            group.facts,
-            sessionId,
-            project,
-          );
-          totalFacts += action.factsAdded;
+          // Check if this query merges with an existing one
+          const queryVector = await embedding.embed(group.query);
+          const existing = memorydb.findSimilarQuery(queryVector, project);
+
+          if (existing) {
+            // Merge path: consolidate old + new facts via LLM
+            const existingFacts = memorydb.getFactsForQuery(existing.query.id);
+            const existingExtracted = existingFacts.map((f) => ({
+              fact: f.fact_text,
+              kind: f.kind,
+              files: f.files,
+            }));
+
+            const consolidated = await consolidateFacts(
+              existingExtracted,
+              group.facts,
+              existing.query.query_text,
+              config.openaiApiKey,
+            );
+
+            // Replace all facts with the consolidated set
+            const now = new Date().toISOString();
+            const factRecords = consolidated.map((f) => ({
+              id: randomUUID(),
+              fact_text: f.fact,
+              kind: f.kind,
+              files: f.files,
+              created_at: now,
+            }));
+            memorydb.replaceFactsForQuery(existing.query.id, factRecords);
+            history.log(
+              existing.query.id,
+              'MERGE',
+              group.query,
+              existing.query.query_text,
+              'consolidate',
+              now,
+            );
+            totalFacts += consolidated.length;
+          } else {
+            // New query path: add directly
+            const action = await store.addQueryWithFacts(
+              group.query,
+              group.facts,
+              sessionId,
+              project,
+            );
+            totalFacts += action.factsAdded;
+          }
         }
       } finally {
         memorydb.close();

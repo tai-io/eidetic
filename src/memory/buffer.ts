@@ -22,6 +22,8 @@ export class MemoryBuffer {
         source TEXT NOT NULL,
         tool_name TEXT,
         project TEXT NOT NULL DEFAULT 'global',
+        file_paths TEXT,
+        raw_output TEXT,
         captured_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_buffer_session ON memory_buffer(session_id);
@@ -39,13 +41,24 @@ export class MemoryBuffer {
     source: string,
     toolName: string | null,
     project: string,
+    filePaths: string | null = null,
+    rawOutput: string | null = null,
   ): void {
     this.db
       .prepare(
-        `INSERT INTO memory_buffer (session_id, content, source, tool_name, project, captured_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO memory_buffer (session_id, content, source, tool_name, project, file_paths, raw_output, captured_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(sessionId, content, source, toolName, project, new Date().toISOString());
+      .run(
+        sessionId,
+        content,
+        source,
+        toolName,
+        project,
+        filePaths,
+        rawOutput,
+        new Date().toISOString(),
+      );
   }
 
   count(sessionId: string): number {

@@ -26,7 +26,7 @@ describe('MemoryStore', () => {
     it('stores a query with facts', async () => {
       const action = await store.addQueryWithFacts(
         'What indentation style does this project use?',
-        [{ fact: 'Indentation style is tabs not spaces', kind: 'convention' }],
+        [{ fact: 'Indentation style is tabs not spaces', kind: 'convention', files: [] }],
         'session-1',
       );
 
@@ -46,8 +46,8 @@ describe('MemoryStore', () => {
       const action = await store.addQueryWithFacts(
         'TypeScript conventions',
         [
-          { fact: 'Uses TypeScript strict mode', kind: 'convention' },
-          { fact: 'Prefers pnpm over npm', kind: 'decision' },
+          { fact: 'Uses TypeScript strict mode', kind: 'convention', files: [] },
+          { fact: 'Prefers pnpm over npm', kind: 'decision', files: [] },
         ],
         'session-1',
       );
@@ -60,13 +60,13 @@ describe('MemoryStore', () => {
       // MockEmbedding is deterministic — same text → same vector → cosine 1.0
       await store.addQueryWithFacts(
         'TypeScript conventions',
-        [{ fact: 'Uses strict mode', kind: 'convention' }],
+        [{ fact: 'Uses strict mode', kind: 'convention', files: [] }],
         'session-1',
       );
 
       const action = await store.addQueryWithFacts(
         'TypeScript conventions',
-        [{ fact: 'Uses ESM only', kind: 'convention' }],
+        [{ fact: 'Uses ESM only', kind: 'convention', files: [] }],
         'session-2',
       );
 
@@ -78,13 +78,13 @@ describe('MemoryStore', () => {
     it('skips duplicate facts during merge', async () => {
       await store.addQueryWithFacts(
         'TypeScript conventions',
-        [{ fact: 'Uses strict mode', kind: 'convention' }],
+        [{ fact: 'Uses strict mode', kind: 'convention', files: [] }],
         'session-1',
       );
 
       const action = await store.addQueryWithFacts(
         'TypeScript conventions',
-        [{ fact: 'Uses strict mode', kind: 'convention' }],
+        [{ fact: 'Uses strict mode', kind: 'convention', files: [] }],
         'session-2',
       );
 
@@ -96,7 +96,7 @@ describe('MemoryStore', () => {
   describe('addMemory (legacy)', () => {
     it('wraps addQueryWithFacts', async () => {
       const actions = await store.addMemory([
-        { fact: 'Indentation style is tabs not spaces', kind: 'convention' },
+        { fact: 'Indentation style is tabs not spaces', kind: 'convention', files: [] },
       ]);
 
       expect(actions).toHaveLength(1);
@@ -114,7 +114,7 @@ describe('MemoryStore', () => {
     it('returns matching facts', async () => {
       await store.addQueryWithFacts(
         'What indentation style?',
-        [{ fact: 'Uses tabs', kind: 'convention' }],
+        [{ fact: 'Uses tabs', kind: 'convention', files: [] }],
         'session-1',
       );
 
@@ -127,7 +127,7 @@ describe('MemoryStore', () => {
     it('returns MemoryItems with correct shape', async () => {
       await store.addQueryWithFacts(
         'test query',
-        [{ fact: 'test fact', kind: 'fact' }],
+        [{ fact: 'test fact', kind: 'fact', files: [] }],
         'session-1',
       );
 
@@ -145,7 +145,7 @@ describe('MemoryStore', () => {
     it('deletes an existing query and its facts', async () => {
       const action = await store.addQueryWithFacts(
         'Use React 19',
-        [{ fact: 'Use React 19', kind: 'fact' }],
+        [{ fact: 'Use React 19', kind: 'fact', files: [] }],
         'session-1',
       );
       const queryId = action.queryId;
@@ -169,7 +169,7 @@ describe('MemoryStore', () => {
     it('returns history entries for a query', async () => {
       const action = await store.addQueryWithFacts(
         'Prefers dark mode',
-        [{ fact: 'Prefers dark mode', kind: 'fact' }],
+        [{ fact: 'Prefers dark mode', kind: 'fact', files: [] }],
         'session-1',
       );
 
@@ -184,7 +184,7 @@ describe('MemoryStore', () => {
     it('stores project field on added query', async () => {
       const action = await store.addQueryWithFacts(
         'Docker build issues',
-        [{ fact: 'Docker build fails on M1; use --platform linux/amd64', kind: 'fact' }],
+        [{ fact: 'Docker build fails on M1; use --platform linux/amd64', kind: 'fact', files: [] }],
         'session-1',
         'my-project',
       );
@@ -195,7 +195,7 @@ describe('MemoryStore', () => {
     it('defaults project to "global" when not specified', async () => {
       const action = await store.addQueryWithFacts(
         'Use tabs not spaces',
-        [{ fact: 'Use tabs not spaces', kind: 'convention' }],
+        [{ fact: 'Use tabs not spaces', kind: 'convention', files: [] }],
         'session-1',
       );
 
@@ -205,13 +205,13 @@ describe('MemoryStore', () => {
     it('includes both project and global memories when project specified', async () => {
       await store.addQueryWithFacts(
         'Global convention query',
-        [{ fact: 'Global convention', kind: 'convention' }],
+        [{ fact: 'Global convention', kind: 'convention', files: [] }],
         'session-1',
         'global',
       );
       await store.addQueryWithFacts(
         'Project convention query',
-        [{ fact: 'Project-specific convention', kind: 'convention' }],
+        [{ fact: 'Project-specific convention', kind: 'convention', files: [] }],
         'session-1',
         'my-project',
       );
@@ -227,7 +227,7 @@ describe('MemoryStore', () => {
     it('stores and retrieves kind field', async () => {
       await store.addQueryWithFacts(
         'Offline requirements',
-        [{ fact: 'Must work offline', kind: 'constraint' }],
+        [{ fact: 'Must work offline', kind: 'constraint', files: [] }],
         'session-1',
       );
 
@@ -240,7 +240,7 @@ describe('MemoryStore', () => {
       for (const kind of kinds) {
         const action = await store.addQueryWithFacts(
           `Test ${kind} query`,
-          [{ fact: `Test ${kind} memory`, kind }],
+          [{ fact: `Test ${kind} memory`, kind, files: [] }],
           'session-1',
         );
         expect(action.factsAdded).toBe(1);
@@ -252,12 +252,12 @@ describe('MemoryStore', () => {
     it('returns query groups', async () => {
       await store.addQueryWithFacts(
         'What is the indentation style?',
-        [{ fact: 'Fact 1', kind: 'fact' }],
+        [{ fact: 'Fact 1', kind: 'fact', files: [] }],
         'session-1',
       );
       await store.addQueryWithFacts(
         'How does deployment work in production?',
-        [{ fact: 'Fact 2', kind: 'decision' }],
+        [{ fact: 'Fact 2', kind: 'decision', files: [] }],
         'session-1',
       );
 
@@ -268,8 +268,18 @@ describe('MemoryStore', () => {
     });
 
     it('filters by project', async () => {
-      await store.addQueryWithFacts('Q1', [{ fact: 'F1', kind: 'fact' }], 's1', 'proj-a');
-      await store.addQueryWithFacts('Q2', [{ fact: 'F2', kind: 'fact' }], 's1', 'proj-b');
+      await store.addQueryWithFacts(
+        'Q1',
+        [{ fact: 'F1', kind: 'fact', files: [] }],
+        's1',
+        'proj-a',
+      );
+      await store.addQueryWithFacts(
+        'Q2',
+        [{ fact: 'F2', kind: 'fact', files: [] }],
+        's1',
+        'proj-b',
+      );
 
       const groups = store.listMemories(undefined, 50, 'proj-a');
       expect(groups.every((g) => g.query.project === 'proj-a')).toBe(true);
