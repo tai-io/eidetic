@@ -33,6 +33,11 @@ export async function runHook(event: string | undefined): Promise<void> {
       await run();
       break;
     }
+    case 'cross-project-index': {
+      const { run } = await import('./cross-project-index.js');
+      run();
+      break;
+    }
     case 'setup-message': {
       const mode = process.argv[4] ?? 'welcome';
       const detail = process.argv[5];
