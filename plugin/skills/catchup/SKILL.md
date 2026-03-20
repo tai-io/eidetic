@@ -1,36 +1,26 @@
 ---
 name: catchup
-description: Recover session context from Eidetic memories and notes
+description: Recover session context from markdown notes
 ---
 
 # /catchup
+
+Recover context from session notes and cross-project memory.
 
 ## Step 1: Detect Project
 
 ```bash
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-if [ -n "$PROJECT_ROOT" ]; then
-  PROJECT_NAME=$(basename "$PROJECT_ROOT")
-  NOTES_DIR="$HOME/.eidetic/notes/$PROJECT_NAME"
-  echo "PROJECT_NAME=$PROJECT_NAME"
-  echo "NOTES_DIR=$NOTES_DIR"
-  echo "EXISTS=$([ -d "$NOTES_DIR" ] && echo yes || echo no)"
-  echo "FILE_COUNT=$([ -d "$NOTES_DIR" ] && ls "$NOTES_DIR"/*.md 2>/dev/null | wc -l || echo 0)"
-else
-  echo "NO_GIT_REPO"
-fi
+PROJECT_NAME=$(basename "$PROJECT_ROOT" 2>/dev/null || echo "unknown")
+NOTES_DIR="$HOME/.eidetic/notes/$PROJECT_NAME"
+echo "PROJECT_NAME=$PROJECT_NAME"
+echo "NOTES_DIR=$NOTES_DIR"
+echo "EXISTS=$([ -d "$NOTES_DIR" ] && echo yes || echo no)"
 ```
 
-- Argument overrides PROJECT_NAME (e.g. `/catchup myproject`).
-- If NO_GIT_REPO and no argument, ask for project name.
+Argument overrides PROJECT_NAME (e.g. `/catchup myproject`).
 
-## Step 2: Search Memories
-
-```
-search_memory(query="recent decisions and changes", project="<PROJECT_NAME>", limit=10)
-```
-
-## Step 3: Read Recent Notes
+## Step 2: Read Session Notes
 
 If notes directory exists:
 
@@ -38,17 +28,22 @@ If notes directory exists:
 ls -t "$NOTES_DIR"/*.md 2>/dev/null | head -3
 ```
 
-Read the top 2-3 most recent note files.
+Read the 2-3 most recent note files.
+
+## Step 3: Check Cross-Project Index
+
+The global cross-project memory index was injected at session start. Review it for relevant memories from OTHER projects. If you see potentially useful entries, use `/search` to read them.
 
 ## Step 4: Present Summary
 
 ```
 ## Catchup: <PROJECT_NAME>
-**Last session:** <date> | **Status:** <1-line status>
+**Last session:** <date> | **Branch:** <branch> | **Status:** <1-line>
 - <Key decision or change>
-- <Critical open question>
+- <Open question>
 - <Next action>
-**Memories:** <N> relevant | **Notes:** <N> files, <date range>
+**Notes:** <N> files, <date range>
+**Cross-project:** <N> related memories from other projects (use /search to explore)
 ```
 
 Expand only if user asks.
