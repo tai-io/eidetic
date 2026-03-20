@@ -3,22 +3,16 @@
  * PostToolUse hook for ExitPlanMode.
  *
  * Captures session state (like session-end) when leaving plan mode —
- * parses transcript, writes session note, updates index, flushes buffer.
+ * parses transcript, writes session note, updates index.
  */
 
 import { z } from 'zod';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawn } from 'node:child_process';
 import { parseTranscript } from '../precompact/transcript-parser.js';
 import { writeSessionNote } from '../precompact/note-writer.js';
 import { updateSessionIndex, readSessionIndex } from '../precompact/tier0-writer.js';
 import { getNotesDir, getProjectId } from '../precompact/utils.js';
 import type { PostToolUseOutput } from './hook-output.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const BUFFER_RUNNER_PATH = path.join(__dirname, '..', 'memory', 'buffer-runner.js');
 
 const PostToolUseInputSchema = z.object({
   session_id: z.string(),
@@ -70,46 +64,12 @@ export async function run(): Promise<void> {
       );
     }
 
-    // Flush buffer (fire-and-forget)
-    void flushSessionBuffer(hookInput.session_id, projectId);
-
     writeOutput();
   } catch (err) {
     process.stderr.write(
       `[eidetic] Plan mode capture error: ${err instanceof Error ? err.message : String(err)}\n`,
     );
     writeOutput();
-  }
-}
-
-async function flushSessionBuffer(sessionId: string, project: string): Promise<void> {
-  try {
-    const { getBufferDbPath } = await import('../paths.js');
-    const { MemoryBuffer } = await import('../memory/buffer.js');
-    const buffer = new MemoryBuffer(getBufferDbPath());
-
-    const count = buffer.count(sessionId);
-    if (count === 0) return;
-
-    if (!buffer.isConsolidating(sessionId)) {
-      buffer.markConsolidating(sessionId);
-      try {
-        const child = spawn(process.execPath, [BUFFER_RUNNER_PATH, sessionId, project], {
-          detached: true,
-          stdio: 'ignore',
-          env: process.env,
-          windowsHide: true,
-        });
-        child.unref();
-        process.stderr.write(
-          `[eidetic] Flushing ${count} buffered items for session ${sessionId}\n`,
-        );
-      } catch {
-        buffer.clearConsolidating(sessionId);
-      }
-    }
-  } catch (err) {
-    process.stderr.write(`[eidetic] Buffer flush failed (non-fatal): ${String(err)}\n`);
   }
 }
 

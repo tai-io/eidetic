@@ -9,5 +9,4 @@ export class EideticError extends Error {
 }
 
 export class ConfigError extends EideticError {}
-export class EmbeddingError extends EideticError {}
 export class MemoryError extends EideticError {}
