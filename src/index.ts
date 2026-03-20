@@ -49,7 +49,14 @@ const WORKFLOW_GUIDANCE = `# Eidetic — Persistent Memory
 - Queries are automatically deduplicated — similar queries (cosine >= 0.92) merge their facts`;
 
 async function main() {
-  // CLI subcommand routing — hooks call `npx @tai-io/eidetic hook <event>`
+  // CLI subcommand routing
+  if (process.argv[2] === 'migrate') {
+    const { runMigration } = await import('./memory/migrate-v3.js');
+    runMigration();
+    process.exit(0);
+  }
+
+  // Hooks call `npx @tai-io/eidetic hook <event>`
   if (process.argv[2] === 'hook') {
     const { runHook } = await import('./hooks/cli-router.js');
     await runHook(process.argv[3]);
@@ -90,7 +97,7 @@ async function main() {
 
   // eslint-disable-next-line @typescript-eslint/no-deprecated -- MCP SDK is loosely typed
   const server = new Server(
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+     
     { name: '@tai-io/eidetic', version: BUILD_VERSION },
     { capabilities: { tools: {} } },
   );
