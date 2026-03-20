@@ -205,7 +205,9 @@ export function migrateV3(v2BaseDir: string, nativeBaseDir: string): MigrateResu
     return result;
   }
 
-  const projects = fs.readdirSync(v2BaseDir, { withFileTypes: true }).filter((d) => d.isDirectory());
+  const projects = fs
+    .readdirSync(v2BaseDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory());
 
   for (const project of projects) {
     const v2ProjectDir = path.join(v2BaseDir, project.name);

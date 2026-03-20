@@ -104,9 +104,7 @@ export function formatGlobalIndex(
   const lines: string[] = ['# Eidetic Cross-Project Memory Index', ''];
 
   // Current project first, then others
-  const current = currentProject
-    ? projects.find((p) => p.dirName === currentProject)
-    : null;
+  const current = currentProject ? projects.find((p) => p.dirName === currentProject) : null;
   const others = projects.filter((p) => p !== current);
 
   if (current) {
@@ -142,10 +140,7 @@ export function run(): void {
 
 // ── Private helpers ─────────────────────────────────────────────────
 
-function readProjectMemory(
-  projectsDir: string,
-  dirName: string,
-): ProjectMemoryInfo | null {
+function readProjectMemory(projectsDir: string, dirName: string): ProjectMemoryInfo | null {
   const memoryDir = path.join(projectsDir, dirName, 'memory');
   if (!fs.existsSync(memoryDir)) return null;
 

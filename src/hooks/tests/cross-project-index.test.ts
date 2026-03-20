@@ -53,7 +53,8 @@ describe('cross-project-index', () => {
 
   describe('parseMemoryIndex', () => {
     it('parses link entries with descriptions', () => {
-      const content = '- [feedback_langfuse.md](feedback_langfuse.md) — Langfuse v4 SDK needs legacy API';
+      const content =
+        '- [feedback_langfuse.md](feedback_langfuse.md) — Langfuse v4 SDK needs legacy API';
       const entries = parseMemoryIndex(content);
       expect(entries).toEqual([
         { filename: 'feedback_langfuse.md', description: 'Langfuse v4 SDK needs legacy API' },
@@ -92,11 +93,7 @@ describe('cross-project-index', () => {
     });
 
     it('returns empty array for content with no links', () => {
-      const content = [
-        '# My Notes',
-        '- some inline note',
-        '- another note',
-      ].join('\n');
+      const content = ['# My Notes', '- some inline note', '- another note'].join('\n');
       expect(parseMemoryIndex(content)).toEqual([]);
     });
 
@@ -150,9 +147,7 @@ describe('cross-project-index', () => {
 
       mockedFs.readdirSync.mockImplementation(((p: string) => {
         if (p === projectsDir) {
-          return [
-            { name: projectDir, isDirectory: () => true } as unknown as fs.Dirent,
-          ];
+          return [{ name: projectDir, isDirectory: () => true } as unknown as fs.Dirent];
         }
         if (p === memoryDir) {
           return [
@@ -186,9 +181,7 @@ describe('cross-project-index', () => {
 
       mockedFs.readdirSync.mockImplementation(((p: string) => {
         if (p === projectsDir) {
-          return [
-            { name: 'project-a', isDirectory: () => true } as unknown as fs.Dirent,
-          ];
+          return [{ name: 'project-a', isDirectory: () => true } as unknown as fs.Dirent];
         }
         return [];
       }) as unknown as typeof fs.readdirSync);
@@ -223,9 +216,7 @@ describe('cross-project-index', () => {
         return [];
       }) as unknown as typeof fs.readdirSync);
 
-      mockedFs.readFileSync.mockReturnValue(
-        '- [a.md](a.md) — desc a\n- [b.md](b.md) — desc b',
-      );
+      mockedFs.readFileSync.mockReturnValue('- [a.md](a.md) — desc a\n- [b.md](b.md) — desc b');
 
       const result = scanProjectMemories(projectsDir);
       expect(result[0].memoryCount).toBe(3);
@@ -261,9 +252,7 @@ describe('cross-project-index', () => {
       const projects: ProjectMemoryInfo[] = [
         {
           dirName: 'E--workspace-audrey',
-          entries: [
-            { filename: 'langfuse.md', description: 'Langfuse v4 API notes' },
-          ],
+          entries: [{ filename: 'langfuse.md', description: 'Langfuse v4 API notes' }],
           memoryCount: 1,
         },
       ];
@@ -293,17 +282,13 @@ describe('cross-project-index', () => {
     });
 
     it('uses singular "memory" for count of 1', () => {
-      const projects: ProjectMemoryInfo[] = [
-        { dirName: 'proj', entries: [], memoryCount: 1 },
-      ];
+      const projects: ProjectMemoryInfo[] = [{ dirName: 'proj', entries: [], memoryCount: 1 }];
       const output = formatGlobalIndex(null, projects);
       expect(output).toContain('(1 memory)');
     });
 
     it('uses plural "memories" for count > 1', () => {
-      const projects: ProjectMemoryInfo[] = [
-        { dirName: 'proj', entries: [], memoryCount: 5 },
-      ];
+      const projects: ProjectMemoryInfo[] = [{ dirName: 'proj', entries: [], memoryCount: 5 }];
       const output = formatGlobalIndex(null, projects);
       expect(output).toContain('(5 memories)');
     });
@@ -317,9 +302,7 @@ describe('cross-project-index', () => {
     });
 
     it('includes footer with search hint', () => {
-      const projects: ProjectMemoryInfo[] = [
-        { dirName: 'proj', entries: [], memoryCount: 1 },
-      ];
+      const projects: ProjectMemoryInfo[] = [{ dirName: 'proj', entries: [], memoryCount: 1 }];
       const output = formatGlobalIndex(null, projects);
       expect(output).toContain('Use /search <query> to read memories from any project.');
     });

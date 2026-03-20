@@ -275,10 +275,7 @@ project: my-project
 
     migrateV3(v2BaseDir, nativeBaseDir);
 
-    const content = readFileSync(
-      join(nativeBaseDir, 'my-project', 'memory', 'mixed.md'),
-      'utf-8',
-    );
+    const content = readFileSync(join(nativeBaseDir, 'my-project', 'memory', 'mixed.md'), 'utf-8');
     // convention and constraint facts should produce feedback type
     // Since file has mixed kinds, the dominant type is used
     expect(content).toContain('type:');
