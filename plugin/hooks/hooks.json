@@ -36,16 +36,6 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "WebFetch|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-extract.sh\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
         "matcher": "ExitPlanMode",
         "hooks": [
           {
@@ -55,18 +45,6 @@
           }
         ]
       }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/search-guidance.sh\"",
-            "timeout": 3
-          }
-        ]
-      }
-    ],
-    "PreToolUse": []
+    ]
   }
 }

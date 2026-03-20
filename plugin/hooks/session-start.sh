@@ -1,45 +1,8 @@
 #!/usr/bin/env bash
-# Eidetic SessionStart hook — checks config, injects last-session context
-# Message content lives in src/setup-message.ts (single source of truth)
+# Eidetic SessionStart hook — injects last-session context + cross-project memory index
 
-if [ -z "$OPENAI_API_KEY" ] && [ "${EMBEDDING_PROVIDER:-openai}" = "openai" ]; then
-  npx @tai-io/eidetic hook setup-message missing "OPENAI_API_KEY is not set."
-  exit 0
-fi
+# Tier-0: compact summary from most recent session (best-effort)
+npx @tai-io/eidetic hook tier0-inject 2>/dev/null || true
 
-# Self-register MCP server at user scope if not already registered
-if ! node -e "
-  const fs = require('fs'), path = require('path'), os = require('os');
-  try {
-    const p = path.join(os.homedir(), '.claude.json');
-    const d = JSON.parse(fs.readFileSync(p, 'utf8'));
-    process.exit(d.mcpServers && d.mcpServers['@tai-io/eidetic'] ? 0 : 1);
-  } catch (e) { process.exit(1); }
-" 2>/dev/null; then
-  _env_args=()
-  [ -n "$OPENAI_API_KEY" ]     && _env_args+=(-e "OPENAI_API_KEY=$OPENAI_API_KEY")
-  [ -n "$EMBEDDING_PROVIDER" ] && _env_args+=(-e "EMBEDDING_PROVIDER=$EMBEDDING_PROVIDER")
-  [ -n "$OPENAI_BASE_URL" ]    && _env_args+=(-e "OPENAI_BASE_URL=$OPENAI_BASE_URL")
-  [ -n "$OLLAMA_BASE_URL" ]    && _env_args+=(-e "OLLAMA_BASE_URL=$OLLAMA_BASE_URL")
-  claude mcp add -s user "${_env_args[@]}" -- @tai-io/eidetic npx @tai-io/eidetic 2>/dev/null || true
-fi
-
-# Detect first-run: if registry.json is empty/missing, show welcome message
-_is_first_run=$(node -e "
-  const fs = require('fs'), path = require('path'), os = require('os');
-  try {
-    const p = path.join(os.homedir(), '.eidetic', 'registry.json');
-    const d = JSON.parse(fs.readFileSync(p, 'utf8'));
-    process.exit(Object.keys(d).length > 0 ? 1 : 0);
-  } catch (e) { process.exit(0); }
-" 2>/dev/null && echo "yes" || echo "no")
-
-if [ "$_is_first_run" = "yes" ]; then
-  npx @tai-io/eidetic hook setup-message welcome 2>/dev/null || true
-else
-  # Inject Tier-0 context from most recent session (non-blocking, best-effort)
-  npx @tai-io/eidetic hook tier0-inject 2>/dev/null || true
-
-  # Inject stored memories from vector DB (non-blocking, best-effort)
-  npx @tai-io/eidetic hook memory-inject 2>/dev/null || true
-fi
+# Cross-project memory index: scan all project memory dirs
+npx @tai-io/eidetic hook cross-project-index 2>/dev/null || true
