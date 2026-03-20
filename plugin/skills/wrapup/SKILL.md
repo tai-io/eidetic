@@ -1,98 +1,102 @@
 ---
 name: wrapup
-description: Persist session state to memories and notes for future recovery
+description: Persist session working state to searchable notes for future recovery (pre-compaction)
 ---
 
 # /wrapup
 
+Distill session knowledge into native memory files and session notes.
+
 ## Step 1: Detect Project
 
-```bash
-PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-if [ -n "$PROJECT_ROOT" ]; then
-  PROJECT_NAME=$(basename "$PROJECT_ROOT")
-  NOTES_DIR="$HOME/.eidetic/notes/$PROJECT_NAME"
-  echo "PROJECT_NAME=$PROJECT_NAME"
-  echo "NOTES_DIR=$NOTES_DIR"
-else
-  echo "NO_GIT_REPO"
-fi
-```
-
-- Argument overrides PROJECT_NAME (e.g. `/wrapup myproject`).
-- If NO_GIT_REPO and no argument, ask for project name.
-
-## Step 2: Extract Facts
-
-From the conversation, extract:
-- **Decisions** (choice, rationale, alternatives rejected)
-- **Changes** (exact file paths, what changed)
-- **Numbers** (metrics, costs, counts)
-- **Open questions** (mark OPEN or ASSUMED)
-- **Next actions** (specific, actionable)
-- **Blockers**
-
-If nothing meaningful to persist, inform user and stop.
-
-## Step 3: Store Memories
-
-Store extracted knowledge as memories:
-
-```
-add_memory(
-  facts=[
-    { "fact": "<decision or convention>", "kind": "decision" },
-    { "fact": "<code change description>", "kind": "fact" },
-    { "fact": "<next action>", "kind": "intent" },
-    ...
-  ],
-  project="<PROJECT_NAME>",
-  source="wrapup"
-)
-```
-
-## Step 4: Write Note
+Determine the Claude project memory directory:
 
 ```bash
+echo "CLAUDE_PROJECT=${CLAUDE_PROJECT:-unknown}"
+echo "MEMORY_DIR=$HOME/.claude/projects/$CLAUDE_PROJECT/memory"
+```
+
+If CLAUDE_PROJECT is not set, ask the user which project to save to.
+
+## Step 2: Review Session
+
+Scan this conversation for knowledge worth persisting across sessions:
+
+- **Feedback** — corrections, preferences, approach guidance (type: feedback)
+- **Decisions** — architectural choices, trade-offs, rationale (type: project)
+- **References** — external URLs, tools, dashboards, documentation (type: reference)
+- **User context** — role, expertise, responsibilities (type: user)
+- **Project state** — ongoing work, blockers, deadlines (type: project)
+
+Skip anything that:
+- Is already in the project's existing memory files
+- Can be derived from code or git history
+- Is only relevant to this conversation (use session notes instead)
+
+If nothing worth persisting, inform the user and skip to Step 4.
+
+## Step 3: Write Memory Files
+
+For each memory to persist, create a file in the native memory directory.
+
+**File format** — `~/.claude/projects/<CLAUDE_PROJECT>/memory/<slug>.md`:
+```markdown
+---
+name: descriptive_name
+description: One-line description for relevance matching
+type: user|feedback|project|reference
+---
+
+Memory content in freeform markdown.
+```
+
+**Naming:** Use a descriptive slug prefixed with the type, e.g.:
+- `feedback_no_mocks_in_integration_tests.md`
+- `project_auth_middleware_rewrite.md`
+- `reference_grafana_latency_dashboard.md`
+- `user_senior_backend_engineer.md`
+
+After writing each file, add an entry to MEMORY.md:
+```markdown
+- [filename.md](filename.md) — one-line description
+```
+
+Read MEMORY.md first to avoid duplicating existing entries.
+
+## Step 4: Write Session Note
+
+```bash
+NOTES_DIR="$HOME/.eidetic/notes/$(basename $(git rev-parse --show-toplevel 2>/dev/null) 2>/dev/null || echo unknown)"
 mkdir -p "$NOTES_DIR"
 ```
 
-Filename: `$NOTES_DIR/<YYYY-MM-DD>-<topic-slug>.md` (kebab-case, max 3 words, today's date).
+Write a session note to `$NOTES_DIR/<YYYY-MM-DD>-<topic-slug>.md`:
 
-```
+```markdown
 ---
 project: <PROJECT_NAME>
 date: <YYYY-MM-DD>
 branch: <current git branch>
 ---
 
-# <PROJECT_NAME> — <YYYY-MM-DD>: <Topic Title>
-
-**Date:** <YYYY-MM-DD>
-**Project:** <PROJECT_NAME>
+# <PROJECT_NAME> — <YYYY-MM-DD>: <Topic>
 
 ## Decisions
-- **[Title]**: [Choice]. Rationale: [why]. Rejected: [alternatives].
+- **[Title]**: [Choice]. Rationale: [why].
 
 ## Changes
-- `path/to/file.ts`: [what changed and why]
-
-## Numbers
-- [measurements, counts, costs]
+- `path/to/file.ts`: [what changed]
 
 ## Open Questions
-- **OPEN**: [needs decision]
-- **ASSUMED**: [assumption, needs validation]
+- [needs decision or validation]
 
 ## Next Actions
 1. [specific action]
-
----
-*<PROJECT_NAME> session recorded <YYYY-MM-DD>*
 ```
-
-Date and project appear 4 times for search reliability — keep all occurrences.
 
 ## Step 5: Confirm
 
-Report: file path saved, memories stored, count of decisions/changes/open questions.
+Report:
+- Memory files written (count and names)
+- Session note path
+- Any memories skipped (already existed)
