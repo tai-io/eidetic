@@ -1,10 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { EideticError, ConfigError, EmbeddingError, MemoryError } from '../errors.js';
+import { EideticError, ConfigError, MemoryError } from '../errors.js';
 
 describe('Error hierarchy', () => {
   const errorClasses = [
     { Class: ConfigError, name: 'ConfigError' },
-    { Class: EmbeddingError, name: 'EmbeddingError' },
     { Class: MemoryError, name: 'MemoryError' },
   ];
 

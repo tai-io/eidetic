@@ -7,18 +7,11 @@
  */
 
 import { z } from 'zod';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseTranscript } from './transcript-parser.js';
 import { writeSessionNote } from './note-writer.js';
 import { updateSessionIndex, readSessionIndex } from './tier0-writer.js';
 import { getNotesDir, getProjectId } from './utils.js';
-import { spawn } from 'node:child_process';
-
-// Resolve paths at module boundary (follows project convention)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const BUFFER_RUNNER_PATH = path.join(__dirname, '..', 'memory', 'buffer-runner.js');
 
 // Zod schema — handles both PreCompact and SessionEnd hook events
 const HookInputSchema = z.discriminatedUnion('hook_event_name', [
@@ -103,42 +96,8 @@ export async function run(): Promise<void> {
         tasksCreated: session.tasksCreated.length,
       });
     }
-    // Flush remaining buffer items for this session (fire-and-forget)
-    void flushSessionBuffer(hookInput.session_id, projectId);
   } catch (err) {
     outputError(err instanceof Error ? err.message : String(err));
-  }
-}
-
-async function flushSessionBuffer(sessionId: string, project: string): Promise<void> {
-  try {
-    const { getBufferDbPath } = await import('../paths.js');
-    const { MemoryBuffer } = await import('../memory/buffer.js');
-    const buffer = new MemoryBuffer(getBufferDbPath());
-
-    const count = buffer.count(sessionId);
-    if (count === 0) return;
-
-    // Only spawn if not already consolidating
-    if (!buffer.isConsolidating(sessionId)) {
-      buffer.markConsolidating(sessionId);
-      try {
-        const child = spawn(process.execPath, [BUFFER_RUNNER_PATH, sessionId, project], {
-          detached: true,
-          stdio: 'ignore',
-          env: process.env,
-          windowsHide: true,
-        });
-        child.unref();
-        process.stderr.write(
-          `[eidetic] Flushing ${count} buffered items for session ${sessionId}\n`,
-        );
-      } catch {
-        buffer.clearConsolidating(sessionId);
-      }
-    }
-  } catch (err) {
-    process.stderr.write(`[eidetic] Buffer flush failed (non-fatal): ${String(err)}\n`);
   }
 }
 
