@@ -1,6 +1,6 @@
 {
   "name": "@tai-io/eidetic",
-  "version": "2026.314.1748",
+  "version": "2026.320.923",
   "description": "Persistent memory for Claude Code",
   "type": "module",
   "main": "dist/index.js",

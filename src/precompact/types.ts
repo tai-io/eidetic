@@ -3,28 +3,6 @@
  */
 
 /**
- * Input received from Claude Code PreCompact hook via stdin.
- */
-export interface PreCompactInput {
-  session_id: string;
-  transcript_path: string;
-  cwd: string;
-  trigger: 'auto' | 'manual';
-  hook_event_name: 'PreCompact';
-}
-
-/**
- * Input received from Claude Code SessionEnd hook via stdin.
- */
-export interface SessionEndInput {
-  session_id: string;
-  transcript_path: string;
-  cwd: string;
-  hook_event_name: 'SessionEnd';
-  reason?: string;
-}
-
-/**
  * Session data extracted from transcript JSONL.
  * Contains deterministic data parsed directly from tool calls.
  */
