@@ -12,6 +12,7 @@ import { parseTranscript } from './transcript-parser.js';
 import { writeSessionNote } from './note-writer.js';
 import { updateSessionIndex, readSessionIndex } from './tier0-writer.js';
 import { getNotesDir, getProjectId } from './utils.js';
+import { writeNativeSessionMemory } from './native-session-memory.js';
 
 // Zod schema — handles both PreCompact and SessionEnd hook events
 const HookInputSchema = z.discriminatedUnion('hook_event_name', [
@@ -89,6 +90,9 @@ export async function run(): Promise<void> {
       // PreCompact: original flow
       noteFile = writeSessionNote(notesDir, session);
       updateSessionIndex(notesDir, session, noteFile);
+
+      // Safety net: write compact summary to native memory dir
+      writeNativeSessionMemory(session);
 
       outputSuccess({
         noteFile,

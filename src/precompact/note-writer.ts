@@ -91,12 +91,12 @@ export function formatSessionNote(session: ExtractedSession): string {
 
   // Decisions (placeholder)
   lines.push('## Decisions');
-  lines.push('*Auto-captured. Run /wrapup for decisions with rationale.*');
+  lines.push('*Auto-captured. Use native auto memory to persist decisions with rationale.*');
   lines.push('');
 
   // Open Questions (placeholder)
   lines.push('## Open Questions');
-  lines.push('*Run /wrapup to capture open questions.*');
+  lines.push('*Add open questions to project memory for cross-session tracking.*');
   lines.push('');
 
   return lines.join('\n');

@@ -76,13 +76,13 @@ describe('formatSessionNote', () => {
   it('includes placeholder for Decisions section', () => {
     const note = formatSessionNote(makeSession());
     expect(note).toContain('## Decisions');
-    expect(note).toContain('Run /wrapup for decisions');
+    expect(note).toContain('native auto memory');
   });
 
   it('includes placeholder for Open Questions section', () => {
     const note = formatSessionNote(makeSession());
     expect(note).toContain('## Open Questions');
-    expect(note).toContain('Run /wrapup to capture open questions');
+    expect(note).toContain('project memory');
   });
 
   it('handles null branch', () => {
